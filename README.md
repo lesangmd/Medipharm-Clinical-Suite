@@ -17,3 +17,10 @@ Android integration hides Web/PWA install and fullscreen actions, adds Login / R
 - Hides the “Về Trang chủ” row only inside the Android native shell.
 - Dark-mode control keeps the button/label but removes the “Toàn website” summary annotation on Android.
 - Package ID and signing lineage remain unchanged for in-place update from v1.0.0.
+
+
+## Android v1.0.2
+- Rewrites the Android About section around user-facing Clinical Suite capabilities.
+- All app-level version labels in the Android shell show the Android application version instead of the WebApp/plugin version.
+- Update menu is simplified to “Kiểm tra phiên bản mới” with no repository/audit wording.
+- Canonical WebApp launcher icon is now embedded in Android source and verified by SHA-256 during build.
