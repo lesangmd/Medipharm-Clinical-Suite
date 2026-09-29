@@ -1,9 +1,12 @@
 name: Build Android v1.1.2 Inline Offline Bootstrap Hotfix
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
+    inputs:
+      source_url:
+        description: "Temporary download URL for the locked v1.1.2 source ZIP"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -15,11 +18,12 @@ jobs:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
       SOURCE_SHA256: 9728a0848147c05eac4407b780bfb21fa61f456bfe41aeb56a2ddea46fba8b1f
-      SOURCE_URL: "https://sdmntprjapaneast.oaiusercontent.com/files/00000000-30e4-8209-a2cb-1c92eca1e611/raw?se=2026-09-29T15%3A14%3A00Z&sp=r&sv=2026-02-06&sr=b&scid=02d476ef-0b76-5202-9e97-811652fd22a6&skoid=03727f49-62d3-42ac-8350-1c0e6559d238&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-29T10%3A43%3A18Z&ske=2026-09-30T10%3A43%3A18Z&sks=b&skv=2026-02-06&sig=QdBpj/DtWCF3BAvBlNQHToCgQFSNAh/w4kDv%2BZN3kLY%3D"
     steps:
       - uses: actions/checkout@v4
 
       - name: Fetch locked v1.1.2 source
+        env:
+          SOURCE_URL: ${{ inputs.source_url }}
         run: |
           curl -fL --retry 5 --retry-all-errors --connect-timeout 20 "$SOURCE_URL" -o /tmp/clinical-suite-v1.1.2-source.zip
           echo "$SOURCE_SHA256  /tmp/clinical-suite-v1.1.2-source.zip" | sha256sum -c -
