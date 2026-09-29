@@ -14,8 +14,8 @@ jobs:
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-      SOURCE_SHA256: e2c379eac96606a953156a104d8f8d59fd87ce0ab5fef802e88167a313c563c9
-      SOURCE_URL: "https://sdmntprkoreacentral.oaiusercontent.com/files/00000000-dd98-8206-b719-a178bf4bf9df/raw?se=2026-09-29T12%3A05%3A48Z&sp=r&sv=2026-02-06&sr=b&scid=74721795-d529-5f5f-9484-c83db85004f5&skoid=03727f49-62d3-42ac-8350-1c0e6559d238&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-29T03%3A56%3A53Z&ske=2026-09-30T03%3A56%3A53Z&sks=b&skv=2026-02-06&sig=yTfJ4B2To2SOHMRDgcl9Jxj5wjjpjgUJzpCkrTxTcKw%3D"
+      SOURCE_SHA256: db7963cb9437f9ee32ee4a59a857eac0550fa4ce81b0753c1be7e6e1456b921e
+      SOURCE_URL: "https://sdmntprjapaneast.oaiusercontent.com/files/00000000-4d54-8209-aaed-31662b0c481b/raw?se=2026-09-29T12%3A08%3A21Z&sp=r&sv=2026-02-06&sr=b&scid=13caa67d-a2d8-5601-a773-34009f5bd08b&skoid=03727f49-62d3-42ac-8350-1c0e6559d238&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-29T04%3A04%3A34Z&ske=2026-09-30T04%3A04%3A34Z&sks=b&skv=2026-02-06&sig=CmI1zJLTnlcAo1GNC3YAmmCiuT21JoLe98dzI0XaC7Q%3D"
     steps:
       - uses: actions/checkout@v4
 
