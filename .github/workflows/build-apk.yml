@@ -1,12 +1,9 @@
-name: Build Android v1.1.2 Inline Offline Bootstrap Hotfix
+name: Build Android v1.1.3 Interaction Deadlock Hotfix
 
 on:
+  push:
+    branches: [ main ]
   workflow_dispatch:
-    inputs:
-      source_url:
-        description: "Temporary download URL for the locked v1.1.2 source ZIP"
-        required: true
-        type: string
 
 permissions:
   contents: read
@@ -17,20 +14,19 @@ jobs:
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-      SOURCE_SHA256: 9728a0848147c05eac4407b780bfb21fa61f456bfe41aeb56a2ddea46fba8b1f
+      SOURCE_SHA256: 8e7fea8c200c7f63c3390241f801c94b49808fb00c2e94810a10468649a428d7
+      SOURCE_URL: "https://sdmntprjapaneast.oaiusercontent.com/files/00000000-44e4-8209-bb9b-ec7a4966421f/raw?se=2026-09-30T00%3A03%3A04Z&sp=r&sv=2026-02-06&sr=b&scid=7189a92e-7a86-5556-97c6-0edaa51564bc&skoid=03727f49-62d3-42ac-8350-1c0e6559d238&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-29T22%3A19%3A50Z&ske=2026-09-30T22%3A19%3A50Z&sks=b&skv=2026-02-06&sig=Cq9sc0BvwsnRD63njLowdV5BFR%2Bc7ytsp/3zm1nMx9o%3D"
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch locked v1.1.2 source
-        env:
-          SOURCE_URL: ${{ inputs.source_url }}
+      - name: Fetch locked v1.1.3 source
         run: |
-          curl -fL --retry 5 --retry-all-errors --connect-timeout 20 "$SOURCE_URL" -o /tmp/clinical-suite-v1.1.2-source.zip
-          echo "$SOURCE_SHA256  /tmp/clinical-suite-v1.1.2-source.zip" | sha256sum -c -
-          rm -rf /tmp/clinical-suite-v1.1.2
-          mkdir -p /tmp/clinical-suite-v1.1.2
-          unzip -q /tmp/clinical-suite-v1.1.2-source.zip -d /tmp/clinical-suite-v1.1.2
-          PROJECT_DIR=$(find /tmp/clinical-suite-v1.1.2 -mindepth 1 -maxdepth 1 -type d | head -n1)
+          curl -fL --retry 5 --retry-all-errors --connect-timeout 20 "$SOURCE_URL" -o /tmp/clinical-suite-v1.1.3-source.zip
+          echo "$SOURCE_SHA256  /tmp/clinical-suite-v1.1.3-source.zip" | sha256sum -c -
+          rm -rf /tmp/clinical-suite-v1.1.3
+          mkdir -p /tmp/clinical-suite-v1.1.3
+          unzip -q /tmp/clinical-suite-v1.1.3-source.zip -d /tmp/clinical-suite-v1.1.3
+          PROJECT_DIR=$(find /tmp/clinical-suite-v1.1.3 -mindepth 1 -maxdepth 1 -type d | head -n1)
           test -f "$PROJECT_DIR/app/build.gradle"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
@@ -48,17 +44,18 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Verify locked offline payload and v1.1.2 contract
+      - name: Verify v1.1.3 interaction-deadlock contract
         run: |
           cd "$PROJECT_DIR"
           python3 - <<'PY'
-          import json, hashlib, pathlib, re
+          import json, hashlib, pathlib
           root=pathlib.Path("app/src/main/assets/offline")
           m=json.loads((root/"offline-manifest.json").read_text(encoding="utf-8"))
-          assert m["android_version"]=="1.1.2"
+          assert m["android_version"]=="1.1.3"
           assert m["content_version"]=="16.7.7"
           assert m["tool_count"]==1505
           assert m["file_count"]==52
+          assert m["payload_bytes"]==35272615
           assert m["offline_default"] is True
           total=0
           for rec in m["files"]:
@@ -69,43 +66,31 @@ jobs:
               total+=len(b)
           assert total==m["payload_bytes"]
 
-          index=(root/"index.html").read_text(encoding="utf-8")
-          ui=(root/"assets/js/clinical-ui.js").read_text(encoding="utf-8")
           java=pathlib.Path("app/src/main/java/com/medipharm/clinicalsuite/MainActivity.java").read_text(encoding="utf-8")
-          gradle=pathlib.Path("app/build.gradle").read_text(encoding="utf-8")
-          props=pathlib.Path("gradle.properties").read_text(encoding="utf-8")
-
-          assert 'id="mcs-offline-inline-bootstrap"' in index
-          assert 'window.NAHClinicalToolsCatalog=' in index
-          assert "document.documentElement.dataset.mcsInlineBootstrap='1'" in index
-          assert not re.search(r'<script[^>]+src=', index, re.I)
-          assert "w.NAHClinicalToolsCatalog?Promise.resolve" in ui
-          assert "dataset.mcsOfflineBundle==='1')return;" in ui
-          assert "MCSAndroidOffline" in java
-          assert "WebViewAssetLoader" in java
-          assert 'androidx.webkit:webkit:1.17.1' in gradle
-          assert "android.useAndroidX=true" in props
-          print(f"V112_LOCK_PASS files={m['file_count']} bytes={total} tools={m['tool_count']}")
+          build=pathlib.Path("app/build.gradle").read_text(encoding="utf-8")
+          assert "new MutationObserver(apply).observe(document.body" not in java
+          assert "window.setTimeout(apply,250);window.setTimeout(apply,1200)" in java
+          assert "infoPanel.dataset.mcsAndroidInfo!==androidVersion" in java
+          assert "webView.setClickable(true)" in java
+          assert "webView.setFocusableInTouchMode(true)" in java
+          assert "versionCode 7" in build
+          assert "versionName '1.1.3'" in build
+          print(f"V113_LOCK_PASS files={m['file_count']} bytes={total} tools={m['tool_count']}")
           PY
-          node --check app/src/main/assets/offline/assets/js/clinical-ui.js
           echo "fa842429c8fe80639c2173f6cef65edff7f5d2c62a3220175dcd13957535fd11  app/src/main/res/drawable/app_icon.png" | sha256sum -c -
 
-      - name: Build and align v1.1.2
+      - name: Build and align v1.1.3
         run: |
           cd "$PROJECT_DIR"
-          VERSION_NAME=$(sed -n "s/.*versionName '\([^']*\)'.*/\1/p" app/build.gradle | head -n1)
-          VERSION_CODE=$(sed -n "s/.*versionCode \([0-9][0-9]*\).*/\1/p" app/build.gradle | head -n1)
-          test "$VERSION_NAME" = "1.1.2"
-          test "$VERSION_CODE" = "6"
           gradle --no-daemon assembleRelease
           mkdir -p "$GITHUB_WORKSPACE/out"
-          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.1.2-aligned-unsigned.apk"
-          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.1.2-aligned-unsigned.apk"
-          sha256sum "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.1.2-aligned-unsigned.apk" > "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.1.2-aligned-unsigned.apk.sha256"
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.1.3-aligned-unsigned.apk"
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.1.3-aligned-unsigned.apk"
+          sha256sum "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.1.3-aligned-unsigned.apk" > "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.1.3-aligned-unsigned.apk.sha256"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: medipharm-clinical-suite-v1.1.2-inline-offline-build
+          name: medipharm-clinical-suite-v1.1.3-deadlock-hotfix-build
           path: out/
           if-no-files-found: error
           retention-days: 7
