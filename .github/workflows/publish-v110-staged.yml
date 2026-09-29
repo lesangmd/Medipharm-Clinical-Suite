@@ -18,7 +18,15 @@ jobs:
 
       - name: Reassemble locked production APK
         run: |
-          cat .release-staging/v1.1.0/apk.part.* > MEDIPHARM-Clinical-Suite-v1.1.0.apk
+          cat .release-staging/v1.1.0/apk.part.000 \
+              .release-staging/v1.1.0/apk.part.001 \
+              .release-staging/v1.1.0/apk.part.002 \
+              .release-staging/v1.1.0/apk.part.003 \
+              .release-staging/v1.1.0/apk.part.004 \
+              .release-staging/v1.1.0/apk.part.005 \
+              .release-staging/v1.1.0/apk.part.006 \
+              .release-staging/v1.1.0/apk.tail.0 > MEDIPHARM-Clinical-Suite-v1.1.0.apk
+          base64 -d .release-staging/v1.1.0/apk.tail.1.b64 >> MEDIPHARM-Clinical-Suite-v1.1.0.apk
           echo "3015858b4781eab363631dda63c75f6416f1f2ce26e9392973ea4972ba71629c  MEDIPHARM-Clinical-Suite-v1.1.0.apk" | sha256sum -c -
           unzip -tq MEDIPHARM-Clinical-Suite-v1.1.0.apk
           echo "3015858b4781eab363631dda63c75f6416f1f2ce26e9392973ea4972ba71629c  MEDIPHARM-Clinical-Suite-v1.1.0.apk" > MEDIPHARM-Clinical-Suite-v1.1.0.apk.sha256
