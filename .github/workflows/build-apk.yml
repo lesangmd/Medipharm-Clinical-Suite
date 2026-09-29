@@ -73,7 +73,7 @@ jobs:
 
           assert 'id="mcs-offline-inline-bootstrap"' in index
           assert 'window.NAHClinicalToolsCatalog=' in index
-          assert 'data-mcs-inline-bootstrap' in index
+          assert "document.documentElement.dataset.mcsInlineBootstrap='1'" in index
           assert not re.search(r'<script[^>]+src=', index, re.I)
           assert "w.NAHClinicalToolsCatalog?Promise.resolve" in ui
           assert "dataset.mcsOfflineBundle==='1')return;" in ui
