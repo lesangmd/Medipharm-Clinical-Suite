@@ -1,9 +1,12 @@
 name: Build Android v1.1.1 Offline Bootstrap Hotfix
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
+    inputs:
+      source_url:
+        description: "Temporary download URL for the locked v1.1.1 source ZIP"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -15,11 +18,12 @@ jobs:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
       SOURCE_SHA256: db7963cb9437f9ee32ee4a59a857eac0550fa4ce81b0753c1be7e6e1456b921e
-      SOURCE_URL: "https://sdmntprjapaneast.oaiusercontent.com/files/00000000-4d54-8209-aaed-31662b0c481b/raw?se=2026-09-29T12%3A08%3A21Z&sp=r&sv=2026-02-06&sr=b&scid=13caa67d-a2d8-5601-a773-34009f5bd08b&skoid=03727f49-62d3-42ac-8350-1c0e6559d238&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-29T04%3A04%3A34Z&ske=2026-09-30T04%3A04%3A34Z&sks=b&skv=2026-02-06&sig=CmI1zJLTnlcAo1GNC3YAmmCiuT21JoLe98dzI0XaC7Q%3D"
     steps:
       - uses: actions/checkout@v4
 
       - name: Fetch locked v1.1.1 source
+        env:
+          SOURCE_URL: ${{ inputs.source_url }}
         run: |
           curl -fL --retry 5 --retry-all-errors --connect-timeout 20 "$SOURCE_URL" -o /tmp/clinical-suite-v1.1.1-source.zip
           echo "$SOURCE_SHA256  /tmp/clinical-suite-v1.1.1-source.zip" | sha256sum -c -
@@ -67,11 +71,13 @@ jobs:
           assert total==m["payload_bytes"]
           java=pathlib.Path("app/src/main/java/com/medipharm/clinicalsuite/MainActivity.java").read_text()
           gradle=pathlib.Path("app/build.gradle").read_text()
+          props=pathlib.Path("gradle.properties").read_text()
           index=(root/"index.html").read_text()
           assert "WebViewAssetLoader" in java
           assert "serveOfflineAsset" not in java
           assert "/assets/offline/" in java
           assert 'androidx.webkit:webkit:1.17.1' in gradle
+          assert "android.useAndroidX=true" in props
           assert "clinical-tool-catalog-v16.7.7.json" not in "\n".join(
               line for line in index.splitlines() if 'rel="preload"' in line
           )
