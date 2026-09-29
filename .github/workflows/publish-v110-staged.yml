@@ -1,0 +1,33 @@
+name: Publish staged Android v1.1.0 APK
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - ".release-staging/v1.1.0/**"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reassemble locked production APK
+        run: |
+          cat .release-staging/v1.1.0/apk.part.* > MEDIPHARM-Clinical-Suite-v1.1.0.apk
+          echo "3015858b4781eab363631dda63c75f6416f1f2ce26e9392973ea4972ba71629c  MEDIPHARM-Clinical-Suite-v1.1.0.apk" | sha256sum -c -
+          unzip -tq MEDIPHARM-Clinical-Suite-v1.1.0.apk
+          echo "3015858b4781eab363631dda63c75f6416f1f2ce26e9392973ea4972ba71629c  MEDIPHARM-Clinical-Suite-v1.1.0.apk" > MEDIPHARM-Clinical-Suite-v1.1.0.apk.sha256
+
+      - name: Publish APK and remove staging chunks
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add MEDIPHARM-Clinical-Suite-v1.1.0.apk MEDIPHARM-Clinical-Suite-v1.1.0.apk.sha256
+          git rm -r .release-staging/v1.1.0
+          git commit -m "Publish signed Android v1.1.0 Offline-First APK"
+          git push origin HEAD:main
