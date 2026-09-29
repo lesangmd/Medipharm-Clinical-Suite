@@ -14,8 +14,8 @@ jobs:
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-      SOURCE_SHA256: 3ef17d4803b6eb67cb5411782a886e439f035ee985f6be9fe5d61fd0ffa16bad
-      SOURCE_URL: "https://sdmntprkoreacentral.oaiusercontent.com/files/00000000-6f3c-8206-88dd-eee253fab40c/raw?se=2026-09-29T12%3A02%3A43Z&sp=r&sv=2026-02-06&sr=b&scid=5db17133-b90e-5066-a7c0-8102be2308d4&skoid=03727f49-62d3-42ac-8350-1c0e6559d238&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-29T03%3A54%3A04Z&ske=2026-09-30T03%3A54%3A04Z&sks=b&skv=2026-02-06&sig=TfZQZ0Gr6L16m51F/DtQ01DeOKc%2BJcQbhT2Ja2xZhwo%3D"
+      SOURCE_SHA256: e2c379eac96606a953156a104d8f8d59fd87ce0ab5fef802e88167a313c563c9
+      SOURCE_URL: "https://sdmntprkoreacentral.oaiusercontent.com/files/00000000-dd98-8206-b719-a178bf4bf9df/raw?se=2026-09-29T12%3A05%3A48Z&sp=r&sv=2026-02-06&sr=b&scid=74721795-d529-5f5f-9484-c83db85004f5&skoid=03727f49-62d3-42ac-8350-1c0e6559d238&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-29T03%3A56%3A53Z&ske=2026-09-30T03%3A56%3A53Z&sks=b&skv=2026-02-06&sig=yTfJ4B2To2SOHMRDgcl9Jxj5wjjpjgUJzpCkrTxTcKw%3D"
     steps:
       - uses: actions/checkout@v4
 
@@ -55,7 +55,7 @@ jobs:
           assert m["content_version"]=="16.7.7"
           assert m["tool_count"]==1505
           assert m["file_count"]==52
-          assert m["payload_bytes"]==28244140
+          assert m["payload_bytes"]==28244396
           assert m["offline_default"] is True
           total=0
           for rec in m["files"]:
