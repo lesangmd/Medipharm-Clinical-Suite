@@ -147,9 +147,9 @@ public final class MainActivity extends Activity {
     private void applyAndroidIntegration(WebView view) {
         String script = "(function(){try{" +
                 "document.documentElement.classList.add('mcs-native-android');" +
-                "var st=document.getElementById('mcs-native-android-style');if(!st){st=document.createElement('style');st.id='mcs-native-android-style';st.textContent='[data-mcs-menu-install],[data-mcs-more-fullscreen],[data-mcs-more-install],.nah-clinical-install,[data-clinical-install]{display:none!important}';document.head.appendChild(st);}" +
+                "var st=document.getElementById('mcs-native-android-style');if(!st){st=document.createElement('style');st.id='mcs-native-android-style';st.textContent='[data-mcs-menu-install],[data-mcs-more-fullscreen],[data-mcs-more-install],.nah-clinical-install,[data-clinical-install],[data-clinical-fullscreen],.mcs-install-offer{display:none!important}';document.head.appendChild(st);}" +
                 "function apply(){" +
-                "document.querySelectorAll('[data-mcs-menu-install],[data-mcs-more-fullscreen],[data-mcs-more-install],.nah-clinical-install,[data-clinical-install]').forEach(function(e){e.style.setProperty('display','none','important');});" +
+                "document.querySelectorAll('[data-mcs-menu-install],[data-mcs-more-fullscreen],[data-mcs-more-install],.nah-clinical-install,[data-clinical-install],[data-clinical-fullscreen],.mcs-install-offer').forEach(function(e){e.style.setProperty('display','none','important');});" +
                 "var nav=document.querySelector('.mcs-compact-settings-menu');if(!nav||document.querySelector('[data-mcs-native-actions]'))return;" +
                 "var wrap=document.createElement('div');wrap.setAttribute('data-mcs-native-actions','1');" +
                 "var guest=!!document.querySelector('.mcs-v323-account.is-guest, .mcs-mobile-auth-actions .mcs-auth-primary');" +
