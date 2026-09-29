@@ -147,18 +147,26 @@ public final class MainActivity extends Activity {
     private void applyAndroidIntegration(WebView view) {
         String script = "(function(){try{" +
                 "document.documentElement.classList.add('mcs-native-android');" +
+                "var androidVersion='v" + BuildConfig.VERSION_NAME + "';" +
                 "var st=document.getElementById('mcs-native-android-style');if(!st){st=document.createElement('style');st.id='mcs-native-android-style';st.textContent='[data-mcs-menu-install],[data-mcs-more-fullscreen],[data-mcs-more-install],.nah-clinical-install,[data-clinical-install],[data-clinical-fullscreen],.mcs-install-offer,[data-mcs-theme-menu-summary]{display:none!important}.mcs-native-android .mcs-theme-toggle-row>div{display:flex!important;align-items:center!important}.mcs-native-android .mcs-theme-toggle-row>div>b{margin:0!important}';document.head.appendChild(st);}" +
                 "function apply(){" +
                 "document.querySelectorAll('[data-mcs-menu-install],[data-mcs-more-fullscreen],[data-mcs-more-install],.nah-clinical-install,[data-clinical-install],[data-clinical-fullscreen],.mcs-install-offer,[data-mcs-theme-menu-summary]').forEach(function(e){e.style.setProperty('display','none','important');});" +
                 "document.querySelectorAll('.mcs-compact-settings-menu a.mcs-compact-menu-row').forEach(function(a){try{var u=new URL(a.href,location.href);var b=a.querySelector('b');if((u.hostname==='www.sachyhoc.com'||u.hostname==='sachyhoc.com')&&u.pathname==='/'&&b&&b.textContent.trim().toLowerCase()==='về trang chủ'){a.style.setProperty('display','none','important');a.setAttribute('data-mcs-native-home-hidden','1');}}catch(e){}});" +
                 "var themeTop=document.querySelector('[data-clinical-theme]');if(themeTop){themeTop.title='Chế độ tối';themeTop.setAttribute('aria-label','Chế độ tối');}" +
+                "var moreVersion=document.querySelector('.mcs-mobile-more-head span');if(moreVersion){moreVersion.textContent='Ứng dụng Android '+androidVersion;}" +
+                "var info=document.querySelector('[data-mcs-menu-app-info]');if(info){" +
+                "var infoTitle=info.querySelector('summary b');if(infoTitle)infoTitle.textContent='Giới thiệu Ứng dụng';" +
+                "var infoSummary=info.querySelector('summary small');if(infoSummary)infoSummary.textContent='MEDIPHARM Clinical Suite · Android '+androidVersion;" +
+                "var infoPanel=info.querySelector('.mcs-mobile-app-info-panel');if(infoPanel){infoPanel.innerHTML='<p><strong>MEDIPHARM Clinical Suite</strong></p><p>Ứng dụng hỗ trợ thực hành lâm sàng trên thiết bị di động, tích hợp các công cụ tính, thang điểm, phân loại, thuật toán và nội dung tra cứu theo chuyên khoa.</p><ul><li>Tìm kiếm nhanh công cụ theo tên, chuyên khoa và chủ đề lâm sàng.</li><li>Tính toán thang điểm và công thức kèm diễn giải, cảnh báo và phạm vi áp dụng.</li><li>Điều hướng thuật toán lâm sàng và các công cụ liên quan theo bệnh cảnh.</li><li>Cá nhân hoá vai trò, chuyên ngành, đơn vị đo và khoảng tham chiếu xét nghiệm.</li><li>Đăng nhập tài khoản MEDIPHARM và kiểm tra phiên bản ứng dụng Android mới.</li></ul><p>Xây dựng bởi: <strong>Thư viện Medipharm</strong></p><p>Phiên bản Android <strong>'+androidVersion+'</strong></p><p>Clinical Suite hỗ trợ quyết định lâm sàng; không thay thế đánh giá trực tiếp, hướng dẫn hiện hành hoặc quy trình chuyên môn tại cơ sở.</p>';}" +
+                "}" +
+                "var footerVersion=document.querySelector('.nah-clinical-foot>span:first-child');if(footerVersion){footerVersion.textContent='MEDIPHARM Clinical Suite · Android '+androidVersion;}" +
                 "var nav=document.querySelector('.mcs-compact-settings-menu');if(!nav||document.querySelector('[data-mcs-native-actions]'))return;" +
                 "var wrap=document.createElement('div');wrap.setAttribute('data-mcs-native-actions','1');" +
                 "var guest=!!document.querySelector('.mcs-v323-account.is-guest, .mcs-mobile-auth-actions .mcs-auth-primary');" +
-                "function row(label,sub,icon,href){var a=document.createElement('a');a.className='mcs-compact-menu-row';a.href=href;a.innerHTML='<span class=\"mcs-compact-menu-icon\" aria-hidden=\"true\">'+icon+'</span><div><b>'+label+'</b><small>'+sub+'</small></div><i aria-hidden=\"true\">›</i>';return a;}" +
+                "function row(label,sub,icon,href){var a=document.createElement('a');a.className='mcs-compact-menu-row';a.href=href;var subHtml=sub?'<small>'+sub+'</small>':'';a.innerHTML='<span class=\"mcs-compact-menu-icon\" aria-hidden=\"true\">'+icon+'</span><div><b>'+label+'</b>'+subHtml+'</div><i aria-hidden=\"true\">›</i>';return a;}" +
                 "if(guest){wrap.appendChild(row('Đăng nhập','Tài khoản Thư viện Medipharm','👤','medipharmclinical://login'));wrap.appendChild(row('Đăng ký tài khoản','Tạo tài khoản mới','＋','medipharmclinical://register'));}" +
-                "wrap.appendChild(row('Kiểm tra cập nhật','Tìm phiên bản Android mới nhất trên GitHub','↻','medipharmclinical://check-update'));" +
-                "var info=nav.querySelector('[data-mcs-menu-app-info]');if(info)nav.insertBefore(wrap,info);else nav.appendChild(wrap);" +
+                "wrap.appendChild(row('Kiểm tra phiên bản mới','','↻','medipharmclinical://check-update'));" +
+                "if(info)nav.insertBefore(wrap,info);else nav.appendChild(wrap);" +
                 "}" +
                 "apply();new MutationObserver(apply).observe(document.body,{childList:true,subtree:true});return 'ok';" +
                 "}catch(e){return 'error';}})();";
@@ -229,7 +237,7 @@ public final class MainActivity extends Activity {
             new AlertDialog.Builder(this).setTitle("Cập nhật ứng dụng").setMessage("Clinical Suite v" + BuildConfig.VERSION_NAME + " đang là phiên bản mới nhất.").setPositiveButton("Đóng", null).show();
             return;
         }
-        new AlertDialog.Builder(this).setTitle("Có phiên bản mới").setMessage("Clinical Suite v" + latest.version + " đã có trên GitHub. Tải xuống để cập nhật từ v" + BuildConfig.VERSION_NAME + ".").setNegativeButton("Để sau", null).setPositiveButton("Tải xuống", (dialog, which) -> downloadApk(latest)).show();
+        new AlertDialog.Builder(this).setTitle("Có phiên bản mới").setMessage("Clinical Suite v" + latest.version + " đã sẵn sàng. Tải xuống để cập nhật từ v" + BuildConfig.VERSION_NAME + ".").setNegativeButton("Để sau", null).setPositiveButton("Tải xuống", (dialog, which) -> downloadApk(latest)).show();
     }
 
     private void downloadApk(UpdateInfo update) {
