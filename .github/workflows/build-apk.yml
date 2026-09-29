@@ -35,7 +35,7 @@ jobs:
           mkdir -p out
           "$ANDROID_HOME/build-tools/35.0.0/zipalign" -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk "out/MEDIPHARM-Clinical-Suite-v${VERSION_NAME}-aligned-unsigned.apk"
           "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 "out/MEDIPHARM-Clinical-Suite-v${VERSION_NAME}-aligned-unsigned.apk"
-          sha256sum "out/MEDIPHARM-Clinical-Suite-v${VERSION_NAME}-aligned-unsigned.apk" > "out/MEDIPHARM-Clinical-Suite-v${VERSION_NAME}-aligned-unsigned.apk.sha256"
+          sha256sum "out/MEDIPHARM-Clinical-Suite-v${VERSION_NAME}-aligned-unsigned.apk" > "out/MEDIPHARM-Clinical-Suite-v${VERSION_NAME}-aligned-unsigned.apk.sha256"\n          cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" out/apksigner.jar
       - uses: actions/upload-artifact@v4
         with:
           name: medipharm-clinical-suite-android-build
