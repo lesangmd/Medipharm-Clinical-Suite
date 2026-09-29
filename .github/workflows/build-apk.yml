@@ -1,57 +1,94 @@
-name: Publish Android v1.1.0 Production
+name: Build Android v1.1.0 Offline
 
 on:
-  push:
-    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      source_url:
+        description: "Temporary download URL for the locked v1.1.0 source ZIP"
+        required: true
+        type: string
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  publish:
-    if: github.actor != 'github-actions[bot]'
+  build:
     runs-on: ubuntu-latest
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+      SOURCE_SHA256: ae29b4c8c3e66e924349739646b22f216e1a0a32c83d54eacafb02e865641d8f
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch locked production artifacts
+      - name: Fetch locked v1.1.0 source
         env:
-          APK_URL: "https://sdmntprkoreacentral.oaiusercontent.com/files/00000000-00a4-8206-9d38-e0410836c24f/raw?se=2026-09-29T09%3A18%3A29Z&sp=r&sv=2026-02-06&sr=b&scid=c6398fd3-17d2-5d64-9c59-101fc1412323&skoid=03727f49-62d3-42ac-8350-1c0e6559d238&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-29T04%3A00%3A39Z&ske=2026-09-30T04%3A00%3A39Z&sks=b&skv=2026-02-06&sig=xXW0XfDCCcdG2lVd5o9iR9LvUI%2BV5wtj7ydHiiodUmM%3D"
-          SOURCE_URL: "https://sdmntprjapaneast.oaiusercontent.com/files/00000000-f718-8209-8588-7e7df240fb39/raw?se=2026-09-29T09%3A14%3A05Z&sp=r&sv=2026-02-06&sr=b&scid=4f6ba531-9e12-57cf-871f-f9bf2b558950&skoid=03727f49-62d3-42ac-8350-1c0e6559d238&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-29T03%3A58%3A20Z&ske=2026-09-30T03%3A58%3A20Z&sks=b&skv=2026-02-06&sig=dBMdqOuZ7aDWLPPiNa1CNYMmtZItWqvoJ5VqvKICNPU%3D"
-          APK_SHA256: "3015858b4781eab363631dda63c75f6416f1f2ce26e9392973ea4972ba71629c"
-          SOURCE_SHA256: "ae29b4c8c3e66e924349739646b22f216e1a0a32c83d54eacafb02e865641d8f"
+          SOURCE_URL: ${{ inputs.source_url }}
         run: |
-          curl -fL --retry 5 --retry-all-errors --connect-timeout 20 "$APK_URL" -o MEDIPHARM-Clinical-Suite-v1.1.0.apk
-          curl -fL --retry 5 --retry-all-errors --connect-timeout 20 "$SOURCE_URL" -o MEDIPHARM-Clinical-Suite-Android-v1.1.0-Offline-source.zip
-          echo "$APK_SHA256  MEDIPHARM-Clinical-Suite-v1.1.0.apk" | sha256sum -c -
-          echo "$SOURCE_SHA256  MEDIPHARM-Clinical-Suite-Android-v1.1.0-Offline-source.zip" | sha256sum -c -
-          echo "$APK_SHA256  MEDIPHARM-Clinical-Suite-v1.1.0.apk" > MEDIPHARM-Clinical-Suite-v1.1.0.apk.sha256
-          echo "$SOURCE_SHA256  MEDIPHARM-Clinical-Suite-Android-v1.1.0-Offline-source.zip" > MEDIPHARM-Clinical-Suite-Android-v1.1.0-Offline-source.zip.sha256
-          cat > RELEASE-v1.1.0.md <<'EOF'
-          # MEDIPHARM Clinical Suite Android v1.1.0 — Offline-First Core
+          curl -fL --retry 5 --retry-all-errors --connect-timeout 20 "$SOURCE_URL" -o /tmp/clinical-suite-v1.1.0-source.zip
+          echo "$SOURCE_SHA256  /tmp/clinical-suite-v1.1.0-source.zip" | sha256sum -c -
+          rm -rf /tmp/clinical-suite-v1.1.0
+          mkdir -p /tmp/clinical-suite-v1.1.0
+          unzip -q /tmp/clinical-suite-v1.1.0-source.zip -d /tmp/clinical-suite-v1.1.0
+          PROJECT_DIR=$(find /tmp/clinical-suite-v1.1.0 -mindepth 1 -maxdepth 1 -type d | head -n1)
+          test -f "$PROJECT_DIR/app/build.gradle"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
-          Production Android release.
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
 
-          - Android version: 1.1.0 (versionCode 4)
-          - Package: com.medipharm.clinicalsuite
-          - Offline WebApp content: MEDIPHARM Clinical Suite v16.7.7
-          - Offline catalog: 1,505 clinical tools
-          - Offline payload: 52 locked files, 28,244,140 bytes
-          - Default runtime: local APK assets via appassets.androidplatform.net
-          - Network is required only for MEDIPHARM account authentication, Android update checks, and user-opened external references.
-          - Release APK is signed with the established Clinical Suite release certificate used by v1.0.x.
-          - APK SHA-256: 3015858b4781eab363631dda63c75f6416f1f2ce26e9392973ea4972ba71629c
-          - Source ZIP SHA-256: ae29b4c8c3e66e924349739646b22f216e1a0a32c83d54eacafb02e865641d8f
-          EOF
-
-      - name: Publish production artifacts to repository root
+      - name: Install Android SDK packages
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add MEDIPHARM-Clinical-Suite-v1.1.0.apk \
-                  MEDIPHARM-Clinical-Suite-v1.1.0.apk.sha256 \
-                  MEDIPHARM-Clinical-Suite-Android-v1.1.0-Offline-source.zip \
-                  MEDIPHARM-Clinical-Suite-Android-v1.1.0-Offline-source.zip.sha256 \
-                  RELEASE-v1.1.0.md
-          git commit -m "Release Android v1.1.0 Offline-First Core"
-          git push origin HEAD:main
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Verify locked offline payload
+        run: |
+          cd "$PROJECT_DIR"
+          python3 - <<'PY'
+          import json, hashlib, pathlib
+          root=pathlib.Path("app/src/main/assets/offline")
+          m=json.loads((root/"offline-manifest.json").read_text(encoding="utf-8"))
+          assert m["android_version"]=="1.1.0"
+          assert m["content_version"]=="16.7.7"
+          assert m["tool_count"]==1505
+          assert m["file_count"]==52
+          assert m["payload_bytes"]==28244140
+          assert m["offline_default"] is True
+          total=0
+          for rec in m["files"]:
+              p=root/rec["path"]
+              b=p.read_bytes()
+              assert len(b)==rec["bytes"], p
+              assert hashlib.sha256(b).hexdigest()==rec["sha256"], p
+              total+=len(b)
+          assert total==m["payload_bytes"]
+          print(f"OFFLINE_LOCK_PASS files={m['file_count']} bytes={total} tools={m['tool_count']}")
+          PY
+          echo "fa842429c8fe80639c2173f6cef65edff7f5d2c62a3220175dcd13957535fd11  app/src/main/res/drawable/app_icon.png" | sha256sum -c -
+
+      - name: Build and align
+        run: |
+          cd "$PROJECT_DIR"
+          VERSION_NAME=$(sed -n "s/.*versionName '\([^']*\)'.*/\1/p" app/build.gradle | head -n1)
+          VERSION_CODE=$(sed -n "s/.*versionCode \([0-9][0-9]*\).*/\1/p" app/build.gradle | head -n1)
+          test "$VERSION_NAME" = "1.1.0"
+          test "$VERSION_CODE" = "4"
+          gradle --no-daemon assembleRelease
+          mkdir -p "$GITHUB_WORKSPACE/out"
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.1.0-aligned-unsigned.apk"
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.1.0-aligned-unsigned.apk"
+          sha256sum "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.1.0-aligned-unsigned.apk" > "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.1.0-aligned-unsigned.apk.sha256"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: medipharm-clinical-suite-v1.1.0-offline-build
+          path: out/
+          if-no-files-found: error
+          retention-days: 7
