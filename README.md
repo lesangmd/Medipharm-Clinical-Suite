@@ -10,3 +10,10 @@
 - Update APK pattern: `MEDIPHARM-Clinical-Suite-vX.Y.Z.apk`
 
 Android integration hides Web/PWA install and fullscreen actions, adds Login / Register / Check for updates in the mobile menu, and returns to Clinical Suite after a valid WordPress login cookie is detected.
+
+
+## Android v1.0.1 UI corrections
+- Launcher icon is derived directly from the canonical WebApp icon asset.
+- Hides the “Về Trang chủ” row only inside the Android native shell.
+- Dark-mode control keeps the button/label but removes the “Toàn website” summary annotation on Android.
+- Package ID and signing lineage remain unchanged for in-place update from v1.0.0.
