@@ -1,0 +1,44 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Android SDK packages
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Build and align release APK
+        run: |
+          VERSION_NAME=$(sed -n "s/.*versionName '\([^']*\)'.*/\1/p" app/build.gradle | head -n1)
+          test -n "$VERSION_NAME"
+          gradle --no-daemon assembleRelease
+          mkdir -p out
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk "out/MEDIPHARM-Clinical-Suite-v${VERSION_NAME}-aligned-unsigned.apk"
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 "out/MEDIPHARM-Clinical-Suite-v${VERSION_NAME}-aligned-unsigned.apk"
+          sha256sum "out/MEDIPHARM-Clinical-Suite-v${VERSION_NAME}-aligned-unsigned.apk" > "out/MEDIPHARM-Clinical-Suite-v${VERSION_NAME}-aligned-unsigned.apk.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: medipharm-clinical-suite-android-build
+          path: out/
+          if-no-files-found: error
+          retention-days: 7
