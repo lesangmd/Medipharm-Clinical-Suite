@@ -1,0 +1,52 @@
+name: Publish Android v1.1.2 Signed APK
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - ".github/workflows/publish-v1.1.2.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch and verify signed APK
+        env:
+          APK_URL: "https://sdmntprjapaneast.oaiusercontent.com/files/00000000-63ec-8209-8660-15915270385f/raw?se=2026-09-29T15%3A20%3A41Z&sp=r&sv=2026-02-06&sr=b&scid=36f2a478-3ac2-5856-9a23-c22006e60995&skoid=03727f49-62d3-42ac-8350-1c0e6559d238&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-29T03%3A56%3A25Z&ske=2026-09-30T03%3A56%3A25Z&sks=b&skv=2026-02-06&sig=BY2O84cWR/zItqc92c%2B3J5M40t8teQTTsBOkd91837s%3D"
+          APK_SHA256: "e76ceafb29b6516de88d9c952bef96b7aacb3149c619b2715e0231ba71aa16bc"
+        run: |
+          curl -fL --retry 5 --retry-all-errors --connect-timeout 20 "$APK_URL" -o MEDIPHARM-Clinical-Suite-v1.1.2.apk
+          echo "$APK_SHA256  MEDIPHARM-Clinical-Suite-v1.1.2.apk" | sha256sum -c -
+          echo "$APK_SHA256  MEDIPHARM-Clinical-Suite-v1.1.2.apk" > MEDIPHARM-Clinical-Suite-v1.1.2.apk.sha256
+
+      - name: Write release record
+        run: |
+          cat > RELEASE-v1.1.2.md <<'EOF'
+          # MEDIPHARM Clinical Suite Android v1.1.2 — Inline Offline Bootstrap Hotfix
+
+          Corrects the Android offline startup deadlock seen in v1.1.0 and v1.1.1.
+
+          - Critical startup JavaScript is embedded directly in the offline HTML.
+          - The 1,505-tool catalog is embedded and no longer fetched during startup.
+          - No external JavaScript request is required to complete the initial page load.
+          - Full 19 MB runtime hydration is disabled in the background and is loaded only when a tool is opened.
+          - Android native-asset bridge provides a deterministic fallback for local JSON reads.
+          - Clinical content remains v16.7.7.
+          - versionName 1.1.2; versionCode 6.
+          - APK SHA-256: e76ceafb29b6516de88d9c952bef96b7aacb3149c619b2715e0231ba71aa16bc
+          EOF
+
+      - name: Commit signed production APK
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add MEDIPHARM-Clinical-Suite-v1.1.2.apk MEDIPHARM-Clinical-Suite-v1.1.2.apk.sha256 RELEASE-v1.1.2.md
+          git commit -m "Publish signed Android v1.1.2 APK"
+          git push origin HEAD:main
