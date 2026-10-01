@@ -1,4 +1,4 @@
-name: Build Android v1.1.5 Remove Website Home
+name: Build Android v1.1.6 System Bar Insets Hotfix
 
 on:
   push:
@@ -14,19 +14,19 @@ jobs:
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-      SOURCE_SHA256: e68d271c4a68f27b587b4d3d31ae97c4261543cdf7f8767a3e2d3782962d263b
-      SOURCE_URL: "https://sdmntprjapaneast.oaiusercontent.com/files/00000000-4328-8209-bc9d-66b796deeca0/raw?se=2026-09-30T04%3A17%3A13Z&sp=r&sv=2026-02-06&sr=b&scid=3d7fc50b-dfe5-57be-a67d-89d35ca7bba4&skoid=03727f49-62d3-42ac-8350-1c0e6559d238&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-29T23%3A25%3A21Z&ske=2026-09-30T23%3A25%3A21Z&sks=b&skv=2026-02-06&sig=Jym9/JnUjIolVm4KJHgwu%2BYOeYAuPA1i9ro6CtBdFs8%3D"
+      SOURCE_SHA256: dc7892c0f7acdcd5eff3b275ff20a8b3c0fab24713114a3e2e5535935e8d8df0
+      SOURCE_URL: "https://sdmntprkoreacentral.oaiusercontent.com/files/00000000-28a8-8206-ab4e-1f801ab9c0cd/raw?se=2026-10-01T09%3A17%3A31Z&sp=r&sv=2026-02-06&sr=b&scid=2bd24c3d-d3bf-529d-a9ed-704033961866&skoid=1e4bb9ed-6bb5-424a-a3aa-79f21566e722&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-10-01T06%3A25%3A53Z&ske=2026-10-02T06%3A25%3A53Z&sks=b&skv=2026-02-06&sig=0rRKZpOMdeSrWJrNGGy5TPNhRMNokYizU3EfzwQey0k%3D"
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch locked v1.1.5 source
+      - name: Fetch locked v1.1.6 source
         run: |
-          curl -fL --retry 5 --retry-all-errors --connect-timeout 20 "$SOURCE_URL" -o /tmp/clinical-suite-v1.1.5-source.zip
-          echo "$SOURCE_SHA256  /tmp/clinical-suite-v1.1.5-source.zip" | sha256sum -c -
-          rm -rf /tmp/clinical-suite-v1.1.5
-          mkdir -p /tmp/clinical-suite-v1.1.5
-          unzip -q /tmp/clinical-suite-v1.1.5-source.zip -d /tmp/clinical-suite-v1.1.5
-          PROJECT_DIR=$(find /tmp/clinical-suite-v1.1.5 -mindepth 1 -maxdepth 1 -type d | head -n1)
+          curl -fL --retry 5 --retry-all-errors --connect-timeout 20 "$SOURCE_URL" -o /tmp/clinical-suite-v1.1.6-source.zip
+          echo "$SOURCE_SHA256  /tmp/clinical-suite-v1.1.6-source.zip" | sha256sum -c -
+          rm -rf /tmp/clinical-suite-v1.1.6
+          mkdir -p /tmp/clinical-suite-v1.1.6
+          unzip -q /tmp/clinical-suite-v1.1.6-source.zip -d /tmp/clinical-suite-v1.1.6
+          PROJECT_DIR=$(find /tmp/clinical-suite-v1.1.6 -mindepth 1 -maxdepth 1 -type d | head -n1)
           test -f "$PROJECT_DIR/app/build.gradle"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
@@ -44,37 +44,43 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Verify v1.1.5 contract
+      - name: Verify v1.1.6 contract
         run: |
           cd "$PROJECT_DIR"
           python3 - <<'PY'
           import json, pathlib
           root=pathlib.Path("app/src/main/assets/offline")
           m=json.loads((root/"offline-manifest.json").read_text(encoding="utf-8"))
-          assert m["android_version"]=="1.1.5"
+          assert m["android_version"]=="1.1.6"
           assert m["content_version"]=="16.7.7"
           assert m["tool_count"]==1505
           assert m["file_count"]==52
+
           java=pathlib.Path("app/src/main/java/com/medipharm/clinicalsuite/MainActivity.java").read_text()
           build=pathlib.Path("app/build.gradle").read_text()
-          assert "label.indexOf('về trang chủ')===0" in java
-          assert "u.hostname==='www.sachyhoc.com'" not in java
-          assert "versionCode 9" in build and "versionName '1.1.5'" in build
-          print("V115_LOCK_PASS")
+
+          assert "getWindow().setDecorFitsSystemWindows(false);" in java
+          assert "setOnApplyWindowInsetsListener" in java
+          assert "WindowInsets.Type.statusBars() | WindowInsets.Type.displayCutout()" in java
+          assert "WindowInsets.Type.navigationBars()" in java
+          assert "root.requestApplyInsets();" in java
+          assert "versionCode 10" in build and "versionName '1.1.6'" in build
+
+          print("V116_LOCK_PASS")
           PY
 
-      - name: Build and align v1.1.5
+      - name: Build and align v1.1.6
         run: |
           cd "$PROJECT_DIR"
           gradle --no-daemon assembleRelease
           mkdir -p "$GITHUB_WORKSPACE/out"
-          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.1.5-aligned-unsigned.apk"
-          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.1.5-aligned-unsigned.apk"
-          sha256sum "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.1.5-aligned-unsigned.apk" > "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.1.5-aligned-unsigned.apk.sha256"
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.1.6-aligned-unsigned.apk"
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.1.6-aligned-unsigned.apk"
+          sha256sum "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.1.6-aligned-unsigned.apk" > "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.1.6-aligned-unsigned.apk.sha256"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: medipharm-clinical-suite-v1.1.5-build
+          name: medipharm-clinical-suite-v1.1.6-build
           path: out/
           if-no-files-found: error
           retention-days: 7
