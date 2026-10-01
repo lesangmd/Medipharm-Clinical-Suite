@@ -1,4 +1,4 @@
-name: Build Android v1.1.6 System Bar Insets Hotfix
+name: Build Android v1.2.0 Home IA Refresh
 
 on:
   push:
@@ -14,19 +14,19 @@ jobs:
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-      SOURCE_SHA256: dc7892c0f7acdcd5eff3b275ff20a8b3c0fab24713114a3e2e5535935e8d8df0
-      SOURCE_URL: "https://sdmntprkoreacentral.oaiusercontent.com/files/00000000-28a8-8206-ab4e-1f801ab9c0cd/raw?se=2026-10-01T09%3A17%3A31Z&sp=r&sv=2026-02-06&sr=b&scid=2bd24c3d-d3bf-529d-a9ed-704033961866&skoid=1e4bb9ed-6bb5-424a-a3aa-79f21566e722&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-10-01T06%3A25%3A53Z&ske=2026-10-02T06%3A25%3A53Z&sks=b&skv=2026-02-06&sig=0rRKZpOMdeSrWJrNGGy5TPNhRMNokYizU3EfzwQey0k%3D"
+      SOURCE_SHA256: 7b07cb9c8d85117c921393fd7915a8faf4f480af2aab1bc5f3345b3e496c2e97
+      SOURCE_URL: "https://sdmntprjapaneast.oaiusercontent.com/files/00000000-6a14-8209-b483-a2f3800d1bd7/raw?se=2026-10-02T00%3A01%3A18Z&sp=r&sv=2026-02-06&sr=b&scid=9d8ee8b2-cba1-5144-a3e7-a7a0f857bd4c&skoid=03727f49-62d3-42ac-8350-1c0e6559d238&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-10-01T21%3A47%3A54Z&ske=2026-10-02T21%3A47%3A54Z&sks=b&skv=2026-02-06&sig=XupQzJ3Ia42ADmSWt64hnqJNoj94IrEGQVWnFa/LlPU%3D"
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch locked v1.1.6 source
+      - name: Fetch locked v1.2.0 source
         run: |
-          curl -fL --retry 5 --retry-all-errors --connect-timeout 20 "$SOURCE_URL" -o /tmp/clinical-suite-v1.1.6-source.zip
-          echo "$SOURCE_SHA256  /tmp/clinical-suite-v1.1.6-source.zip" | sha256sum -c -
-          rm -rf /tmp/clinical-suite-v1.1.6
-          mkdir -p /tmp/clinical-suite-v1.1.6
-          unzip -q /tmp/clinical-suite-v1.1.6-source.zip -d /tmp/clinical-suite-v1.1.6
-          PROJECT_DIR=$(find /tmp/clinical-suite-v1.1.6 -mindepth 1 -maxdepth 1 -type d | head -n1)
+          curl -fL --retry 5 --retry-all-errors --connect-timeout 20 "$SOURCE_URL" -o /tmp/clinical-suite-v1.2.0-source.zip
+          echo "$SOURCE_SHA256  /tmp/clinical-suite-v1.2.0-source.zip" | sha256sum -c -
+          rm -rf /tmp/clinical-suite-v1.2.0
+          mkdir -p /tmp/clinical-suite-v1.2.0
+          unzip -q /tmp/clinical-suite-v1.2.0-source.zip -d /tmp/clinical-suite-v1.2.0
+          PROJECT_DIR=$(find /tmp/clinical-suite-v1.2.0 -mindepth 1 -maxdepth 1 -type d | head -n1)
           test -f "$PROJECT_DIR/app/build.gradle"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
@@ -44,43 +44,54 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Verify v1.1.6 contract
+      - name: Verify v1.2.0 contract
         run: |
           cd "$PROJECT_DIR"
           python3 - <<'PY'
-          import json, pathlib
+          import json, pathlib, re
           root=pathlib.Path("app/src/main/assets/offline")
           m=json.loads((root/"offline-manifest.json").read_text(encoding="utf-8"))
-          assert m["android_version"]=="1.1.6"
-          assert m["content_version"]=="16.7.7"
+          assert m["android_version"]=="1.2.0"
+          assert m["content_version"]=="16.7.8"
           assert m["tool_count"]==1505
           assert m["file_count"]==52
 
           java=pathlib.Path("app/src/main/java/com/medipharm/clinicalsuite/MainActivity.java").read_text()
           build=pathlib.Path("app/build.gradle").read_text()
+          index=(root/"index.html").read_text()
+          ui=(root/"assets/js/clinical-ui.js").read_text()
+          css=(root/"assets/css/app.css").read_text()
 
+          assert "s.setTextZoom(100);" in java
           assert "getWindow().setDecorFitsSystemWindows(false);" in java
-          assert "setOnApplyWindowInsetsListener" in java
           assert "WindowInsets.Type.statusBars() | WindowInsets.Type.displayCutout()" in java
           assert "WindowInsets.Type.navigationBars()" in java
-          assert "root.requestApplyInsets();" in java
-          assert "versionCode 10" in build and "versionName '1.1.6'" in build
+          assert "FLAG_FULLSCREEN" not in java
+          assert ".hide(WindowInsets.Type.statusBars())" not in java
+          assert "versionCode 11" in build and "versionName '1.2.0'" in build
 
-          print("V116_LOCK_PASS")
+          # Home IA
+          for needle in ["1.505", "23", "210", "1.103"]:
+              assert needle in index or needle in ui
+          assert "Bắt đầu theo tình huống" in index or "Bắt đầu theo tình huống" in ui
+          assert "Gần đây" in ui or "Yêu thích" in ui
+          assert "mcs-home" in css
+          print("V120_LOCK_PASS")
           PY
+          node --check app/src/main/assets/offline/assets/js/clinical-ui.js
 
-      - name: Build and align v1.1.6
+      - name: Build and align v1.2.0
         run: |
           cd "$PROJECT_DIR"
           gradle --no-daemon assembleRelease
           mkdir -p "$GITHUB_WORKSPACE/out"
-          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.1.6-aligned-unsigned.apk"
-          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.1.6-aligned-unsigned.apk"
-          sha256sum "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.1.6-aligned-unsigned.apk" > "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.1.6-aligned-unsigned.apk.sha256"
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.0-aligned-unsigned.apk"
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.0-aligned-unsigned.apk"
+          sha256sum "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.0-aligned-unsigned.apk" > "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.0-aligned-unsigned.apk.sha256"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: medipharm-clinical-suite-v1.1.6-build
+          name: medipharm-clinical-suite-v1.2.0-build
           path: out/
           if-no-files-found: error
           retention-days: 7
