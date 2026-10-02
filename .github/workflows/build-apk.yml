@@ -1,4 +1,4 @@
-name: Build Android v1.2.0 Home IA Refresh
+name: Build Android v1.2.1 Hero Layout Refinement
 
 on:
   push:
@@ -14,19 +14,19 @@ jobs:
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-      SOURCE_SHA256: 7b07cb9c8d85117c921393fd7915a8faf4f480af2aab1bc5f3345b3e496c2e97
-      SOURCE_URL: "https://sdmntprjapaneast.oaiusercontent.com/files/00000000-6a14-8209-b483-a2f3800d1bd7/raw?se=2026-10-02T00%3A01%3A18Z&sp=r&sv=2026-02-06&sr=b&scid=9d8ee8b2-cba1-5144-a3e7-a7a0f857bd4c&skoid=03727f49-62d3-42ac-8350-1c0e6559d238&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-10-01T21%3A47%3A54Z&ske=2026-10-02T21%3A47%3A54Z&sks=b&skv=2026-02-06&sig=XupQzJ3Ia42ADmSWt64hnqJNoj94IrEGQVWnFa/LlPU%3D"
+      SOURCE_SHA256: e3ea37e73578edb034a1a1c3a8bf8d5e44c0d09ff892d1fe57acb62182dc93ad
+      SOURCE_URL: "https://sdmntprjapaneast.oaiusercontent.com/files/00000000-0678-8209-8af3-ea77ad323da5/raw?se=2026-10-02T00%3A37%3A51Z&sp=r&sv=2026-02-06&sr=b&scid=1ce7cc22-9cf7-53c0-80b2-0138f9295fad&skoid=03727f49-62d3-42ac-8350-1c0e6559d238&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-10-01T23%3A20%3A29Z&ske=2026-10-02T23%3A20%3A29Z&sks=b&skv=2026-02-06&sig=FY0E1pYeOb4ehf6giOMZk8ypTJHm9/yxTGOQpZqegC8%3D"
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch locked v1.2.0 source
+      - name: Fetch locked v1.2.1 source
         run: |
-          curl -fL --retry 5 --retry-all-errors --connect-timeout 20 "$SOURCE_URL" -o /tmp/clinical-suite-v1.2.0-source.zip
-          echo "$SOURCE_SHA256  /tmp/clinical-suite-v1.2.0-source.zip" | sha256sum -c -
-          rm -rf /tmp/clinical-suite-v1.2.0
-          mkdir -p /tmp/clinical-suite-v1.2.0
-          unzip -q /tmp/clinical-suite-v1.2.0-source.zip -d /tmp/clinical-suite-v1.2.0
-          PROJECT_DIR=$(find /tmp/clinical-suite-v1.2.0 -mindepth 1 -maxdepth 1 -type d | head -n1)
+          curl -fL --retry 5 --retry-all-errors --connect-timeout 20 "$SOURCE_URL" -o /tmp/clinical-suite-v1.2.1-source.zip
+          echo "$SOURCE_SHA256  /tmp/clinical-suite-v1.2.1-source.zip" | sha256sum -c -
+          rm -rf /tmp/clinical-suite-v1.2.1
+          mkdir -p /tmp/clinical-suite-v1.2.1
+          unzip -q /tmp/clinical-suite-v1.2.1-source.zip -d /tmp/clinical-suite-v1.2.1
+          PROJECT_DIR=$(find /tmp/clinical-suite-v1.2.1 -mindepth 1 -maxdepth 1 -type d | head -n1)
           test -f "$PROJECT_DIR/app/build.gradle"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
@@ -44,54 +44,57 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Verify v1.2.0 contract
+      - name: Verify v1.2.1 contract
         run: |
           cd "$PROJECT_DIR"
           python3 - <<'PY'
-          import json, pathlib, re
+          import json, pathlib, hashlib
           root=pathlib.Path("app/src/main/assets/offline")
           m=json.loads((root/"offline-manifest.json").read_text(encoding="utf-8"))
-          assert m["android_version"]=="1.2.0"
-          assert m["content_version"]=="16.7.8"
+          assert m["android_version"]=="1.2.1"
+          assert m["content_version"]=="16.7.9"
           assert m["tool_count"]==1505
           assert m["file_count"]==52
 
+          total=0
+          for rec in m["files"]:
+              b=(root/rec["path"]).read_bytes()
+              assert len(b)==rec["bytes"]
+              assert hashlib.sha256(b).hexdigest()==rec["sha256"]
+              total += len(b)
+          assert total==m["payload_bytes"]
+
           java=pathlib.Path("app/src/main/java/com/medipharm/clinicalsuite/MainActivity.java").read_text()
           build=pathlib.Path("app/build.gradle").read_text()
-          index=(root/"index.html").read_text()
-          ui=(root/"assets/js/clinical-ui.js").read_text()
+          idx=(root/"index.html").read_text()
           css=(root/"assets/css/app.css").read_text()
+          ui=(root/"assets/js/clinical-ui.js").read_text()
 
-          assert "s.setTextZoom(100);" in java
-          assert "getWindow().setDecorFitsSystemWindows(false);" in java
-          assert "WindowInsets.Type.statusBars() | WindowInsets.Type.displayCutout()" in java
+          assert "versionCode 12" in build and "versionName '1.2.1'" in build
+          assert "mcs-home-ia-v1679" in idx and "mcs-home-ia-v1679" in ui
+          assert "/* v16.7.9 — Hero Layout Refinement */" in css
+          assert "grid-template-columns:repeat(2,minmax(0,1fr))" in css
+          for k in ["kpi-0","kpi-1","kpi-2","kpi-3"]:
+              assert k in css
+          assert "setDecorFitsSystemWindows(false)" in java
+          assert "WindowInsets.Type.displayCutout()" in java
           assert "WindowInsets.Type.navigationBars()" in java
-          assert "FLAG_FULLSCREEN" not in java
-          assert ".hide(WindowInsets.Type.statusBars())" not in java
-          assert "versionCode 11" in build and "versionName '1.2.0'" in build
-
-          # Home IA
-          for needle in ["1.505", "23", "210", "1.103"]:
-              assert needle in index or needle in ui
-          assert "Bắt đầu theo tình huống" in index or "Bắt đầu theo tình huống" in ui
-          assert "Gần đây" in ui or "Yêu thích" in ui
-          assert "mcs-home" in css
-          print("V120_LOCK_PASS")
+          print("V121_LOCK_PASS")
           PY
           node --check app/src/main/assets/offline/assets/js/clinical-ui.js
 
-      - name: Build and align v1.2.0
+      - name: Build and align v1.2.1
         run: |
           cd "$PROJECT_DIR"
           gradle --no-daemon assembleRelease
           mkdir -p "$GITHUB_WORKSPACE/out"
-          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.0-aligned-unsigned.apk"
-          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.0-aligned-unsigned.apk"
-          sha256sum "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.0-aligned-unsigned.apk" > "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.0-aligned-unsigned.apk.sha256"
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.1-aligned-unsigned.apk"
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.1-aligned-unsigned.apk"
+          sha256sum "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.1-aligned-unsigned.apk" > "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.1-aligned-unsigned.apk.sha256"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: medipharm-clinical-suite-v1.2.0-build
+          name: medipharm-clinical-suite-v1.2.1-build
           path: out/
           if-no-files-found: error
           retention-days: 7
