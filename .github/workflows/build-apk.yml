@@ -1,4 +1,4 @@
-name: Build Android v1.2.6 Adaptive Icon Fix
+name: Build Android v1.2.7 Foldable Dock Fix
 
 on:
   push:
@@ -14,19 +14,19 @@ jobs:
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-      SOURCE_SHA256: 3bc0a06821ee4fb48c78957864600c0f6083fb0fc1cf8400e0ada3db8c52b6b5
-      SOURCE_URL: "https://sdmntprkoreacentral.oaiusercontent.com/files/00000000-479c-8206-a2ec-21b6e3952dca/raw?se=2026-10-02T07%3A58%3A38Z&sp=r&sv=2026-02-06&sr=b&scid=d69fd90c-4b16-50e5-8af0-24fc61f5f95c&skoid=03727f49-62d3-42ac-8350-1c0e6559d238&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-10-02T02%3A25%3A38Z&ske=2026-10-03T02%3A25%3A38Z&sks=b&skv=2026-02-06&sig=ktYAv2sz7E8DgcA/D8sVESbRnLfNArwgGixH1WIZPzI%3D"
+      SOURCE_SHA256: 7123ee362e6aebfd1043ff1d1630987ebf2294b0d60141dca4051a02b4f4534f
+      SOURCE_URL: "https://sdmntprjapaneast.oaiusercontent.com/files/00000000-5a68-8209-90b7-193745feefbb/raw?se=2026-10-02T08%3A26%3A27Z&sp=r&sv=2026-02-06&sr=b&scid=6f9f2883-9c0a-51a3-9c45-dc4bbd8bbe58&skoid=03727f49-62d3-42ac-8350-1c0e6559d238&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-10-02T02%3A34%3A38Z&ske=2026-10-03T02%3A34%3A38Z&sks=b&skv=2026-02-06&sig=%2BM75Sv3tx/qzMNM3dGvRpXykhODPBhUJF0p37RXphps%3D"
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch locked v1.2.6 source
+      - name: Fetch locked v1.2.7 source
         run: |
-          curl -fL --retry 5 --retry-all-errors --connect-timeout 20 "$SOURCE_URL" -o /tmp/clinical-suite-v1.2.6-source.zip
-          echo "$SOURCE_SHA256  /tmp/clinical-suite-v1.2.6-source.zip" | sha256sum -c -
-          rm -rf /tmp/clinical-suite-v1.2.6
-          mkdir -p /tmp/clinical-suite-v1.2.6
-          unzip -q /tmp/clinical-suite-v1.2.6-source.zip -d /tmp/clinical-suite-v1.2.6
-          PROJECT_DIR=$(find /tmp/clinical-suite-v1.2.6 -mindepth 1 -maxdepth 1 -type d | head -n1)
+          curl -fL --retry 5 --retry-all-errors --connect-timeout 20 "$SOURCE_URL" -o /tmp/clinical-suite-v1.2.7-source.zip
+          echo "$SOURCE_SHA256  /tmp/clinical-suite-v1.2.7-source.zip" | sha256sum -c -
+          rm -rf /tmp/clinical-suite-v1.2.7
+          mkdir -p /tmp/clinical-suite-v1.2.7
+          unzip -q /tmp/clinical-suite-v1.2.7-source.zip -d /tmp/clinical-suite-v1.2.7
+          PROJECT_DIR=$(find /tmp/clinical-suite-v1.2.7 -mindepth 1 -maxdepth 1 -type d | head -n1)
           test -f "$PROJECT_DIR/app/build.gradle"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
@@ -44,48 +44,45 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Verify v1.2.6 adaptive icon contract
+      - name: Verify v1.2.7 foldable dock contract
         run: |
           cd "$PROJECT_DIR"
           python3 - <<'PY'
-          import json, pathlib, hashlib
+          import json, pathlib
           root=pathlib.Path("app/src/main/assets/offline")
           m=json.loads((root/"offline-manifest.json").read_text(encoding="utf-8"))
-          assert m["android_version"]=="1.2.6"
+          assert m["android_version"]=="1.2.7"
           assert m["content_version"]=="16.7.10"
           assert m["tool_count"]==1505
           assert m["file_count"]==52
 
           build=pathlib.Path("app/build.gradle").read_text(encoding="utf-8")
-          assert "versionCode 17" in build and "versionName '1.2.6'" in build
+          assert "versionCode 18" in build and "versionName '1.2.7'" in build
+
+          java=pathlib.Path("app/src/main/java/com/medipharm/clinicalsuite/MainActivity.java").read_text(encoding="utf-8")
+          assert ".mcs-native-android .mcs-mobile-bottom-nav{position:fixed!important" in java
+          assert "grid-template-columns:repeat(5,minmax(0,1fr))!important" in java
+          assert ".nah-clinical-tools:not(.showing-detail)>.nah-clinical-primary-tabs{display:none!important}" in java
+          assert ".nah-clinical-tools.showing-detail .mcs-mobile-bottom-nav{display:none!important}" in java
 
           manifest=pathlib.Path("app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
           assert 'android:icon="@mipmap/ic_launcher"' in manifest
           assert 'android:roundIcon="@mipmap/ic_launcher_round"' in manifest
-          assert '@drawable/app_icon' not in manifest
-
-          adaptive=pathlib.Path("app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml").read_text(encoding="utf-8")
-          adaptive_round=pathlib.Path("app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml").read_text(encoding="utf-8")
-          assert '<adaptive-icon' in adaptive and '@color/ic_launcher_background' in adaptive and '@drawable/ic_launcher_foreground' in adaptive
-          assert '<adaptive-icon' in adaptive_round
-
-          fg=pathlib.Path("app/src/main/res/drawable-nodpi/ic_launcher_foreground.png")
-          assert hashlib.sha256(fg.read_bytes()).hexdigest()=="a3259239e601119b0ab771a9d5781c5b5683ce876fb7d2c2bf1e6480bcd7a227"
-          print("V126_ADAPTIVE_ICON_PASS")
+          print("V127_FOLDABLE_DOCK_PASS")
           PY
 
-      - name: Build and align v1.2.6
+      - name: Build and align v1.2.7
         run: |
           cd "$PROJECT_DIR"
           gradle --no-daemon assembleRelease
           mkdir -p "$GITHUB_WORKSPACE/out"
-          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.6-aligned-unsigned.apk"
-          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.6-aligned-unsigned.apk"
-          sha256sum "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.6-aligned-unsigned.apk" > "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.6-aligned-unsigned.apk.sha256"
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.7-aligned-unsigned.apk"
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.7-aligned-unsigned.apk"
+          sha256sum "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.7-aligned-unsigned.apk" > "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.7-aligned-unsigned.apk.sha256"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: medipharm-clinical-suite-v1.2.6-build
+          name: medipharm-clinical-suite-v1.2.7-build
           path: out/
           if-no-files-found: error
           retention-days: 7
