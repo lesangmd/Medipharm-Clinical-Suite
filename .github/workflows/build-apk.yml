@@ -1,12 +1,9 @@
 name: Build Android v1.2.8 Bottom Dock Insets Fix
 
 on:
+  push:
+    branches: [ main ]
   workflow_dispatch:
-    inputs:
-      source_url:
-        description: "Temporary download URL for locked v1.2.8 source ZIP"
-        required: true
-        type: string
 
 permissions:
   contents: read
@@ -17,12 +14,12 @@ jobs:
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-      SOURCE_SHA256: 80c0edea13a91ef1c1ca6ae123fa8a47403f1a90df81292e1a65ddf5db44a12f
+      SOURCE_SHA256: 5cf9e61db9cadc29f8286755d30e46110a3335123c169f59ac035f1ffa279396
     steps:
       - uses: actions/checkout@v4
       - name: Fetch locked v1.2.8 source
         env:
-          SOURCE_URL: ${{ inputs.source_url }}
+          SOURCE_URL: "https://sdmntprseasia.oaiusercontent.com/files/00000000-41ac-8207-9e91-12ff5a93cb08/raw?se=2026-10-02T08%3A45%3A34Z&sp=r&sv=2026-02-06&sr=b&scid=faec0f9f-e485-5af1-8271-55f12e7d9ba8&skoid=03727f49-62d3-42ac-8350-1c0e6559d238&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-10-02T02%3A20%3A45Z&ske=2026-10-03T02%3A20%3A45Z&sks=b&skv=2026-02-06&sig=mxpGCUAR368yFM3bl3PRIdzJFiqs4K1fA7Zy3a9Objs%3D"
         run: |
           curl -fL --retry 5 --retry-all-errors --connect-timeout 20 "$SOURCE_URL" -o /tmp/clinical-suite-v1.2.8-source.zip
           echo "$SOURCE_SHA256  /tmp/clinical-suite-v1.2.8-source.zip" | sha256sum -c -
@@ -58,6 +55,8 @@ jobs:
           assert "versionCode 19" in build and "versionName '1.2.8'" in build
           assert "v.setPadding(topInsets.left, topInsets.top, topInsets.right, 0);" in java
           assert "--mcs-android-bottom-inset" in java
+          assert "[data-mcs-mobile-more] b{font-size:0!important}" in java
+          assert 'b:after{content:"Menu"!important' in java
           print("V128_LOCK_PASS")
           PY
           gradle --no-daemon assembleRelease
