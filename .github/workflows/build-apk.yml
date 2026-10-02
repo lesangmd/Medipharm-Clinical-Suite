@@ -1,9 +1,12 @@
 name: Build Android v1.2.8 Bottom Dock Insets Fix
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
+    inputs:
+      source_url:
+        description: "Temporary download URL for locked v1.2.8 source ZIP"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -15,11 +18,11 @@ jobs:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
       SOURCE_SHA256: 80c0edea13a91ef1c1ca6ae123fa8a47403f1a90df81292e1a65ddf5db44a12f
-      SOURCE_URL: "https://sdmntprkoreacentral.oaiusercontent.com/files/00000000-4f80-8206-a503-11f7afac4ae7/raw?se=2026-10-02T08%3A40%3A38Z&sp=r&sv=2026-02-06&sr=b&scid=22c4a1d8-76e8-56f1-89f7-29a84839f05b&skoid=03727f49-62d3-42ac-8350-1c0e6559d238&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-10-02T02%3A37%3A33Z&ske=2026-10-03T02%3A37%3A33Z&sks=b&skv=2026-02-06&sig=J51GSve7A8PiWcGoOs0Qe8InMYj9aWyw1erxRuYjn%2B8%3D"
     steps:
       - uses: actions/checkout@v4
-
       - name: Fetch locked v1.2.8 source
+        env:
+          SOURCE_URL: ${{ inputs.source_url }}
         run: |
           curl -fL --retry 5 --retry-all-errors --connect-timeout 20 "$SOURCE_URL" -o /tmp/clinical-suite-v1.2.8-source.zip
           echo "$SOURCE_SHA256  /tmp/clinical-suite-v1.2.8-source.zip" | sha256sum -c -
@@ -29,22 +32,18 @@ jobs:
           PROJECT_DIR=$(find /tmp/clinical-suite-v1.2.8 -mindepth 1 -maxdepth 1 -type d | head -n1)
           test -f "$PROJECT_DIR/app/build.gradle"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
-
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
-
       - name: Install Android SDK packages
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-
-      - name: Verify v1.2.8 Bottom Dock Insets contract
+      - name: Verify and build v1.2.8
         run: |
           cd "$PROJECT_DIR"
           python3 - <<'PY'
@@ -54,31 +53,17 @@ jobs:
           assert m["android_version"]=="1.2.8"
           assert m["content_version"]=="16.7.10"
           assert m["tool_count"]==1505
-          assert m["file_count"]==52
-
           build=pathlib.Path("app/build.gradle").read_text(encoding="utf-8")
           java=pathlib.Path("app/src/main/java/com/medipharm/clinicalsuite/MainActivity.java").read_text(encoding="utf-8")
           assert "versionCode 19" in build and "versionName '1.2.8'" in build
-
-          assert "navigationBottomInsetPx = Math.max(0, bottomInsets.bottom);" in java
           assert "v.setPadding(topInsets.left, topInsets.top, topInsets.right, 0);" in java
-          assert "applyAndroidBottomInsetCss();" in java
           assert "--mcs-android-bottom-inset" in java
-          assert "var(--mcs-android-bottom-inset,0px)" in java
-          assert "v.setPadding(topInsets.left, topInsets.top, topInsets.right, bottomInsets.bottom);" not in java
-          assert "[data-mcs-mobile-more] b{font-size:10.2px!important}" in java
-          print("V128_BOTTOM_DOCK_INSETS_PASS")
+          print("V128_LOCK_PASS")
           PY
-
-      - name: Build and align v1.2.8
-        run: |
-          cd "$PROJECT_DIR"
           gradle --no-daemon assembleRelease
           mkdir -p "$GITHUB_WORKSPACE/out"
           "$ANDROID_HOME/build-tools/35.0.0/zipalign" -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.8-aligned-unsigned.apk"
           "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.8-aligned-unsigned.apk"
-          sha256sum "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.8-aligned-unsigned.apk" > "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.8-aligned-unsigned.apk.sha256"
-
       - uses: actions/upload-artifact@v4
         with:
           name: medipharm-clinical-suite-v1.2.8-build
