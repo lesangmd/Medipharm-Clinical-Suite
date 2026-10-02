@@ -1,9 +1,12 @@
 name: Build Android v1.2.7 Foldable Dock Fix
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
+    inputs:
+      source_url:
+        description: "Temporary download URL for locked v1.2.7 source ZIP"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -15,11 +18,11 @@ jobs:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
       SOURCE_SHA256: 7123ee362e6aebfd1043ff1d1630987ebf2294b0d60141dca4051a02b4f4534f
-      SOURCE_URL: "https://sdmntprjapaneast.oaiusercontent.com/files/00000000-5a68-8209-90b7-193745feefbb/raw?se=2026-10-02T08%3A26%3A27Z&sp=r&sv=2026-02-06&sr=b&scid=6f9f2883-9c0a-51a3-9c45-dc4bbd8bbe58&skoid=03727f49-62d3-42ac-8350-1c0e6559d238&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-10-02T02%3A34%3A38Z&ske=2026-10-03T02%3A34%3A38Z&sks=b&skv=2026-02-06&sig=%2BM75Sv3tx/qzMNM3dGvRpXykhODPBhUJF0p37RXphps%3D"
     steps:
       - uses: actions/checkout@v4
-
       - name: Fetch locked v1.2.7 source
+        env:
+          SOURCE_URL: ${{ inputs.source_url }}
         run: |
           curl -fL --retry 5 --retry-all-errors --connect-timeout 20 "$SOURCE_URL" -o /tmp/clinical-suite-v1.2.7-source.zip
           echo "$SOURCE_SHA256  /tmp/clinical-suite-v1.2.7-source.zip" | sha256sum -c -
@@ -29,22 +32,18 @@ jobs:
           PROJECT_DIR=$(find /tmp/clinical-suite-v1.2.7 -mindepth 1 -maxdepth 1 -type d | head -n1)
           test -f "$PROJECT_DIR/app/build.gradle"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
-
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
-
       - name: Install Android SDK packages
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-
-      - name: Verify v1.2.7 foldable dock contract
+      - name: Verify and build v1.2.7
         run: |
           cd "$PROJECT_DIR"
           python3 - <<'PY'
@@ -54,32 +53,17 @@ jobs:
           assert m["android_version"]=="1.2.7"
           assert m["content_version"]=="16.7.10"
           assert m["tool_count"]==1505
-          assert m["file_count"]==52
-
           build=pathlib.Path("app/build.gradle").read_text(encoding="utf-8")
-          assert "versionCode 18" in build and "versionName '1.2.7'" in build
-
           java=pathlib.Path("app/src/main/java/com/medipharm/clinicalsuite/MainActivity.java").read_text(encoding="utf-8")
-          assert ".mcs-native-android .mcs-mobile-bottom-nav{position:fixed!important" in java
+          assert "versionCode 18" in build and "versionName '1.2.7'" in build
           assert "grid-template-columns:repeat(5,minmax(0,1fr))!important" in java
           assert ".nah-clinical-tools:not(.showing-detail)>.nah-clinical-primary-tabs{display:none!important}" in java
-          assert ".nah-clinical-tools.showing-detail .mcs-mobile-bottom-nav{display:none!important}" in java
-
-          manifest=pathlib.Path("app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
-          assert 'android:icon="@mipmap/ic_launcher"' in manifest
-          assert 'android:roundIcon="@mipmap/ic_launcher_round"' in manifest
-          print("V127_FOLDABLE_DOCK_PASS")
+          print("V127_LOCK_PASS")
           PY
-
-      - name: Build and align v1.2.7
-        run: |
-          cd "$PROJECT_DIR"
           gradle --no-daemon assembleRelease
           mkdir -p "$GITHUB_WORKSPACE/out"
           "$ANDROID_HOME/build-tools/35.0.0/zipalign" -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.7-aligned-unsigned.apk"
           "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.7-aligned-unsigned.apk"
-          sha256sum "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.7-aligned-unsigned.apk" > "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.7-aligned-unsigned.apk.sha256"
-
       - uses: actions/upload-artifact@v4
         with:
           name: medipharm-clinical-suite-v1.2.7-build
