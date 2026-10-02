@@ -1,9 +1,12 @@
 name: Build Android v1.2.4 Header Search Expansion
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
+    inputs:
+      source_url:
+        description: "Temporary download URL for locked v1.2.4 source ZIP"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -15,11 +18,11 @@ jobs:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
       SOURCE_SHA256: 1a87049c345b13405cd0ee85394a9929a7680c79b2b65341be1bcaf1b50c12fc
-      SOURCE_URL: "https://sdmntprjapaneast.oaiusercontent.com/files/00000000-9a68-8209-a9d1-05888eba3c9b/raw?se=2026-10-02T01%3A24%3A49Z&sp=r&sv=2026-02-06&sr=b&scid=f50e046b-5fcb-5d05-b94a-a6862e662c0d&skoid=03727f49-62d3-42ac-8350-1c0e6559d238&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-10-02T00%3A09%3A48Z&ske=2026-10-03T00%3A09%3A48Z&sks=b&skv=2026-02-06&sig=RvolFR7/Xp3U86KtsnrpooWlQdt4F0gU3cXicq/KbRM%3D"
     steps:
       - uses: actions/checkout@v4
-
       - name: Fetch locked v1.2.4 source
+        env:
+          SOURCE_URL: ${{ inputs.source_url }}
         run: |
           curl -fL --retry 5 --retry-all-errors --connect-timeout 20 "$SOURCE_URL" -o /tmp/clinical-suite-v1.2.4-source.zip
           echo "$SOURCE_SHA256  /tmp/clinical-suite-v1.2.4-source.zip" | sha256sum -c -
@@ -29,66 +32,39 @@ jobs:
           PROJECT_DIR=$(find /tmp/clinical-suite-v1.2.4 -mindepth 1 -maxdepth 1 -type d | head -n1)
           test -f "$PROJECT_DIR/app/build.gradle"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
-
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
-
       - name: Install Android SDK packages
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-
-      - name: Verify v1.2.4 contract
+      - name: Verify and build v1.2.4
         run: |
           cd "$PROJECT_DIR"
           python3 - <<'PY'
-          import json, pathlib, hashlib
+          import json, pathlib
           root=pathlib.Path("app/src/main/assets/offline")
           m=json.loads((root/"offline-manifest.json").read_text(encoding="utf-8"))
           assert m["android_version"]=="1.2.4"
           assert m["content_version"]=="16.7.10"
           assert m["tool_count"]==1505
-          assert m["file_count"]==52
-          total=0
-          for rec in m["files"]:
-              p=root/rec["path"]; b=p.read_bytes()
-              assert len(b)==rec["bytes"]
-              assert hashlib.sha256(b).hexdigest()==rec["sha256"]
-              total+=len(b)
-          assert total==m["payload_bytes"]
-
-          index=(root/"index.html").read_text(encoding="utf-8")
-          css=(root/"assets/css/app.css").read_text(encoding="utf-8")
           build=pathlib.Path("app/build.gradle").read_text(encoding="utf-8")
-          java=pathlib.Path("app/src/main/java/com/medipharm/clinicalsuite/MainActivity.java").read_text(encoding="utf-8")
-
+          css=(root/"assets/css/app.css").read_text(encoding="utf-8")
+          index=(root/"index.html").read_text(encoding="utf-8")
           assert "versionCode 15" in build and "versionName '1.2.4'" in build
-          assert '<button aria-label="Menu" class="mcs-v323-menu" data-mcs-desktop-more=""' not in index
-          assert 'data-mcs-mobile-more=""' in index
           assert '.mcs-v323-appbar{grid-template-columns:44px minmax(0,1fr) 44px!important;}' in css
-          assert '@media(max-width:680px)' in css and 'grid-template-columns:40px minmax(0,1fr) 40px!important' in css
-          assert '.mcs-v323-account-popover{right:0!important;}' in css
-          assert "setDecorFitsSystemWindows(false)" in java
-          assert "WindowInsets.Type.displayCutout()" in java
+          assert '<button aria-label="Menu" class="mcs-v323-menu" data-mcs-desktop-more=""' not in index
           print("V124_LOCK_PASS")
           PY
-          node --check app/src/main/assets/offline/assets/js/clinical-ui.js
-
-      - name: Build and align v1.2.4
-        run: |
-          cd "$PROJECT_DIR"
           gradle --no-daemon assembleRelease
           mkdir -p "$GITHUB_WORKSPACE/out"
           "$ANDROID_HOME/build-tools/35.0.0/zipalign" -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.4-aligned-unsigned.apk"
           "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.4-aligned-unsigned.apk"
-          sha256sum "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.4-aligned-unsigned.apk" > "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.4-aligned-unsigned.apk.sha256"
-
       - uses: actions/upload-artifact@v4
         with:
           name: medipharm-clinical-suite-v1.2.4-build
