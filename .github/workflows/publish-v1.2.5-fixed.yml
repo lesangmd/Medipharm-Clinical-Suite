@@ -1,0 +1,33 @@
+name: Publish fixed Android v1.2.5 APK
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - ".github/workflows/publish-v1.2.5-fixed.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch fixed signed APK
+        run: |
+          curl -fL --retry 5 --retry-all-errors --connect-timeout 20 "https://sdmntprjapaneast.oaiusercontent.com/files/00000000-3d18-8209-96b4-e47b8e813605/raw?se=2026-10-02T05%3A46%3A34Z&sp=r&sv=2026-02-06&sr=b&scid=5d91e132-3898-5c85-8ce9-a8781609b64c&skoid=03727f49-62d3-42ac-8350-1c0e6559d238&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-10-02T02%3A29%3A39Z&ske=2026-10-03T02%3A29%3A39Z&sks=b&skv=2026-02-06&sig=YIRhdAtm2Y2rVOS7zxWdPYctw62Q4AXIq0UMQxK7oHk%3D" -o MEDIPHARM-Clinical-Suite-v1.2.5.apk
+          echo "7547f8ed9d16cd2266f7a5509309b4c00d8e8e6023cbd6cbf5da59d9141d6dc6  MEDIPHARM-Clinical-Suite-v1.2.5.apk" | sha256sum -c -
+
+      - name: Replace broken root APK
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add MEDIPHARM-Clinical-Suite-v1.2.5.apk
+          if git diff --cached --quiet; then
+            echo "Root APK already matches fixed build."
+            exit 0
+          fi
+          git commit -m "Replace broken v1.2.5 APK with Gradle rebuild [skip ci]"
+          git push origin HEAD:main
