@@ -1,12 +1,9 @@
-name: Build Android v1.2.4 Header Search Expansion
+name: Build Android v1.2.5 Rounded Icon Rebuild
 
 on:
+  push:
+    branches: [ main ]
   workflow_dispatch:
-    inputs:
-      source_url:
-        description: "Temporary download URL for locked v1.2.4 source ZIP"
-        required: true
-        type: string
 
 permissions:
   contents: read
@@ -17,57 +14,67 @@ jobs:
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-      SOURCE_SHA256: 1a87049c345b13405cd0ee85394a9929a7680c79b2b65341be1bcaf1b50c12fc
+      SOURCE_SHA256: 2b11ff765680d7ce1d00dfbc3faa928b507123a532554debdae406eee74d44c2
+      SOURCE_URL: "https://sdmntprjapaneast.oaiusercontent.com/files/00000000-7428-8209-8da9-ee289981a15b/raw?se=2026-10-02T05%3A39%3A38Z&sp=r&sv=2026-02-06&sr=b&scid=1e6a2ab4-bbc8-53e2-b24d-b0b963a2b1f0&skoid=03727f49-62d3-42ac-8350-1c0e6559d238&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-10-02T02%3A42%3A11Z&ske=2026-10-03T02%3A42%3A11Z&sks=b&skv=2026-02-06&sig=/69d%2ByGTd1CeAOcdJ7YxSsXkLOwHPmkKJ/OG9PICmTk%3D"
     steps:
       - uses: actions/checkout@v4
-      - name: Fetch locked v1.2.4 source
-        env:
-          SOURCE_URL: ${{ inputs.source_url }}
+
+      - name: Fetch locked v1.2.5 source
         run: |
-          curl -fL --retry 5 --retry-all-errors --connect-timeout 20 "$SOURCE_URL" -o /tmp/clinical-suite-v1.2.4-source.zip
-          echo "$SOURCE_SHA256  /tmp/clinical-suite-v1.2.4-source.zip" | sha256sum -c -
-          rm -rf /tmp/clinical-suite-v1.2.4
-          mkdir -p /tmp/clinical-suite-v1.2.4
-          unzip -q /tmp/clinical-suite-v1.2.4-source.zip -d /tmp/clinical-suite-v1.2.4
-          PROJECT_DIR=$(find /tmp/clinical-suite-v1.2.4 -mindepth 1 -maxdepth 1 -type d | head -n1)
+          curl -fL --retry 5 --retry-all-errors --connect-timeout 20 "$SOURCE_URL" -o /tmp/clinical-suite-v1.2.5-source.zip
+          echo "$SOURCE_SHA256  /tmp/clinical-suite-v1.2.5-source.zip" | sha256sum -c -
+          rm -rf /tmp/clinical-suite-v1.2.5
+          mkdir -p /tmp/clinical-suite-v1.2.5
+          unzip -q /tmp/clinical-suite-v1.2.5-source.zip -d /tmp/clinical-suite-v1.2.5
+          PROJECT_DIR=$(find /tmp/clinical-suite-v1.2.5 -mindepth 1 -maxdepth 1 -type d | head -n1)
           test -f "$PROJECT_DIR/app/build.gradle"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
+
       - name: Install Android SDK packages
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Verify and build v1.2.4
+
+      - name: Verify v1.2.5 contract
         run: |
           cd "$PROJECT_DIR"
           python3 - <<'PY'
-          import json, pathlib
+          import json, pathlib, hashlib
           root=pathlib.Path("app/src/main/assets/offline")
           m=json.loads((root/"offline-manifest.json").read_text(encoding="utf-8"))
-          assert m["android_version"]=="1.2.4"
+          assert m["android_version"]=="1.2.5"
           assert m["content_version"]=="16.7.10"
           assert m["tool_count"]==1505
+          assert m["file_count"]==52
           build=pathlib.Path("app/build.gradle").read_text(encoding="utf-8")
-          css=(root/"assets/css/app.css").read_text(encoding="utf-8")
-          index=(root/"index.html").read_text(encoding="utf-8")
-          assert "versionCode 15" in build and "versionName '1.2.4'" in build
-          assert '.mcs-v323-appbar{grid-template-columns:44px minmax(0,1fr) 44px!important;}' in css
-          assert '<button aria-label="Menu" class="mcs-v323-menu" data-mcs-desktop-more=""' not in index
-          print("V124_LOCK_PASS")
+          assert "versionCode 16" in build and "versionName '1.2.5'" in build
+
+          icon=pathlib.Path("app/src/main/res/drawable/app_icon.png")
+          assert hashlib.sha256(icon.read_bytes()).hexdigest()=="76f0af343b82fbf8fb065422ee8157f642d7c1a236abb7f57aa7f3b92ed29726"
+          print("V125_SOURCE_PASS")
           PY
+
+      - name: Build and align v1.2.5
+        run: |
+          cd "$PROJECT_DIR"
           gradle --no-daemon assembleRelease
           mkdir -p "$GITHUB_WORKSPACE/out"
-          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.4-aligned-unsigned.apk"
-          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.4-aligned-unsigned.apk"
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.5-aligned-unsigned.apk"
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.5-aligned-unsigned.apk"
+          sha256sum "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.5-aligned-unsigned.apk" > "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.5-aligned-unsigned.apk.sha256"
+
       - uses: actions/upload-artifact@v4
         with:
-          name: medipharm-clinical-suite-v1.2.4-build
+          name: medipharm-clinical-suite-v1.2.5-rebuild
           path: out/
           if-no-files-found: error
           retention-days: 7
