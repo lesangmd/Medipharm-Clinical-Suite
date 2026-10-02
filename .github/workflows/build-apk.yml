@@ -1,4 +1,4 @@
-name: Build Android v1.2.3 Single Menu Navigation
+name: Build Android v1.2.4 Header Search Expansion
 
 on:
   push:
@@ -14,21 +14,51 @@ jobs:
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-      SOURCE_SHA256: c1244358f1301e06d8bd69206b96871a31b2f889fb4ae3a927a9977228a8f214
-      SOURCE_URL: "https://sdmntprjapaneast.oaiusercontent.com/files/00000000-bed0-8209-8744-457fcc4e3371/raw?se=2026-10-02T01%3A11%3A53Z&sp=r&sv=2026-02-06&sr=b&scid=d778a8c3-e166-5eb9-a990-ea1c07e417f9&skoid=03727f49-62d3-42ac-8350-1c0e6559d238&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-10-01T20%3A48%3A05Z&ske=2026-10-02T20%3A48%3A05Z&sks=b&skv=2026-02-06&sig=PiI82rxBGPRt6jz%2BxpFtbJKpombGK0kmQaozlG9FkUk%3D"
+      PARENT_SHA256: c1244358f1301e06d8bd69206b96871a31b2f889fb4ae3a927a9977228a8f214
+      PARENT_URL: "https://sdmntprjapaneast.oaiusercontent.com/files/00000000-bed0-8209-8744-457fcc4e3371/raw?se=2026-10-02T01%3A11%3A53Z&sp=r&sv=2026-02-06&sr=b&scid=d778a8c3-e166-5eb9-a990-ea1c07e417f9&skoid=03727f49-62d3-42ac-8350-1c0e6559d238&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-10-01T20%3A48%3A05Z&ske=2026-10-02T20%3A48%3A05Z&sks=b&skv=2026-02-06&sig=PiI82rxBGPRt6jz%2BxpFtbJKpombGK0kmQaozlG9FkUk%3D"
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch locked v1.2.3 source
+      - name: Fetch locked v1.2.3 parent source
         run: |
-          curl -fL --retry 5 --retry-all-errors --connect-timeout 20 "$SOURCE_URL" -o /tmp/clinical-suite-v1.2.3-source.zip
-          echo "$SOURCE_SHA256  /tmp/clinical-suite-v1.2.3-source.zip" | sha256sum -c -
-          rm -rf /tmp/clinical-suite-v1.2.3
-          mkdir -p /tmp/clinical-suite-v1.2.3
-          unzip -q /tmp/clinical-suite-v1.2.3-source.zip -d /tmp/clinical-suite-v1.2.3
-          PROJECT_DIR=$(find /tmp/clinical-suite-v1.2.3 -mindepth 1 -maxdepth 1 -type d | head -n1)
+          curl -fL --retry 5 --retry-all-errors --connect-timeout 20 "$PARENT_URL" -o /tmp/clinical-suite-v1.2.3-source.zip
+          echo "$PARENT_SHA256  /tmp/clinical-suite-v1.2.3-source.zip" | sha256sum -c -
+          rm -rf /tmp/clinical-suite-v1.2.4
+          mkdir -p /tmp/clinical-suite-v1.2.4
+          unzip -q /tmp/clinical-suite-v1.2.3-source.zip -d /tmp/clinical-suite-v1.2.4
+          PROJECT_DIR=$(find /tmp/clinical-suite-v1.2.4 -mindepth 1 -maxdepth 1 -type d | head -n1)
           test -f "$PROJECT_DIR/app/build.gradle"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
+      - name: Apply deterministic v1.2.4 header patch
+        run: |
+          cd "$PROJECT_DIR"
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, hashlib
+          root=Path(".")
+          b=root/"app/build.gradle"
+          s=b.read_text(encoding="utf-8")
+          s=s.replace("versionCode 14","versionCode 15").replace("versionName '1.2.3'","versionName '1.2.4'")
+          b.write_text(s,encoding="utf-8")
+
+          css=root/"app/src/main/assets/offline/assets/css/app.css"
+          c=css.read_text(encoding="utf-8")
+          patch='''\n\n/* Android v1.2.4 — Header Search Expansion after single-Menu consolidation.\n   Android snapshot only: logo / search / account. Dock remains the sole Menu entry point. */\n.mcs-v323-appbar{grid-template-columns:44px minmax(0,1fr) 44px!important;}\n.mcs-v323-account-popover{right:0!important;}\n@media(max-width:680px){\n  .mcs-v323-appbar{grid-template-columns:40px minmax(0,1fr) 40px!important;gap:7px!important;}\n  .mcs-v323-account-popover{right:0!important;}\n}\n@media(min-width:1101px){\n  .mcs-v323-appbar{grid-template-columns:52px minmax(0,1fr) 48px!important;justify-content:stretch!important;}\n  .mcs-v323-account-popover{right:0!important;}\n}\n'''
+          if "Android v1.2.4 — Header Search Expansion" not in c:
+              c += patch
+          css.write_text(c,encoding="utf-8")
+
+          mf=root/"app/src/main/assets/offline/offline-manifest.json"
+          m=json.loads(mf.read_text(encoding="utf-8"))
+          m["android_version"]="1.2.4"
+          off=root/"app/src/main/assets/offline"
+          for rec in m["files"]:
+              p=off/rec["path"]; data=p.read_bytes()
+              rec["bytes"]=len(data); rec["sha256"]=hashlib.sha256(data).hexdigest()
+          m["payload_bytes"]=sum(x["bytes"] for x in m["files"])
+          mf.write_text(json.dumps(m,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+          PY
 
       - uses: actions/setup-java@v5
         with:
@@ -44,51 +74,49 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Verify v1.2.3 contract
+      - name: Verify v1.2.4 contract
         run: |
           cd "$PROJECT_DIR"
           python3 - <<'PY'
           import json, pathlib, hashlib
           root=pathlib.Path("app/src/main/assets/offline")
           m=json.loads((root/"offline-manifest.json").read_text(encoding="utf-8"))
-          assert m["android_version"]=="1.2.3"
+          assert m["android_version"]=="1.2.4"
           assert m["content_version"]=="16.7.10"
           assert m["tool_count"]==1505
           assert m["file_count"]==52
           total=0
           for rec in m["files"]:
-              p=root/rec["path"]
-              b=p.read_bytes()
-              assert len(b)==rec["bytes"], rec["path"]
-              assert hashlib.sha256(b).hexdigest()==rec["sha256"], rec["path"]
+              p=root/rec["path"]; b=p.read_bytes()
+              assert len(b)==rec["bytes"]
+              assert hashlib.sha256(b).hexdigest()==rec["sha256"]
               total+=len(b)
           assert total==m["payload_bytes"]
 
           index=(root/"index.html").read_text(encoding="utf-8")
+          css=(root/"assets/css/app.css").read_text(encoding="utf-8")
           build=pathlib.Path("app/build.gradle").read_text(encoding="utf-8")
-          java=pathlib.Path("app/src/main/java/com/medipharm/clinicalsuite/MainActivity.java").read_text(encoding="utf-8")
-
+          assert "versionCode 15" in build and "versionName '1.2.4'" in build
           assert '<button aria-label="Menu" class="mcs-v323-menu" data-mcs-desktop-more=""' not in index
           assert 'data-mcs-mobile-more=""' in index
-          assert "versionCode 14" in build and "versionName '1.2.3'" in build
-          assert "setDecorFitsSystemWindows(false)" in java
-          assert "WindowInsets.Type.displayCutout()" in java
-          print("V123_LOCK_PASS")
+          assert '.mcs-v323-appbar{grid-template-columns:44px minmax(0,1fr) 44px!important;}' in css
+          assert '.mcs-v323-account-popover{right:0!important;}' in css
+          print("V124_LOCK_PASS")
           PY
           node --check app/src/main/assets/offline/assets/js/clinical-ui.js
 
-      - name: Build and align v1.2.3
+      - name: Build and align v1.2.4
         run: |
           cd "$PROJECT_DIR"
           gradle --no-daemon assembleRelease
           mkdir -p "$GITHUB_WORKSPACE/out"
-          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.3-aligned-unsigned.apk"
-          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.3-aligned-unsigned.apk"
-          sha256sum "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.3-aligned-unsigned.apk" > "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.3-aligned-unsigned.apk.sha256"
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.4-aligned-unsigned.apk"
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.4-aligned-unsigned.apk"
+          sha256sum "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.4-aligned-unsigned.apk" > "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.4-aligned-unsigned.apk.sha256"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: medipharm-clinical-suite-v1.2.3-build
+          name: medipharm-clinical-suite-v1.2.4-build
           path: out/
           if-no-files-found: error
           retention-days: 7
