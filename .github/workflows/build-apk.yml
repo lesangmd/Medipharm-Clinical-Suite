@@ -1,4 +1,4 @@
-name: Build Android v1.2.9 Viewport Dock Portal Fix
+name: Build Android v1.2.6 Adaptive Icon Fix
 
 on:
   push:
@@ -14,71 +14,21 @@ jobs:
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-      BASE_SOURCE_SHA256: 135e94e8344e3f1b2656eeb154590e8b783118a90b655d5d73be1a950ee22355
-      BASE_SOURCE_URL: "https://sdmntprkoreacentral.oaiusercontent.com/files/00000000-d3d8-8206-9a91-5cce25355b84/raw?se=2026-10-02T09%3A58%3A07Z&sp=r&sv=2026-02-06&sr=b&scid=3bf3ad0c-5b04-5d2b-8fad-dfd705570ad1&skoid=03727f49-62d3-42ac-8350-1c0e6559d238&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-10-02T02%3A36%3A19Z&ske=2026-10-03T02%3A36%3A19Z&sks=b&skv=2026-02-06&sig=4yqu7YqLc3Avkzg3HQz3rDpNYsu8vPvq/02Jp1XSVp0%3D"
+      SOURCE_SHA256: fb36929f76ca9fa5512243ec16553f74cc4c7b166d9b8fd5a26f219782540f3d
+      SOURCE_URL: "https://sdmntprnznorth.oaiusercontent.com/files/00000000-e5d0-820b-9348-5d93890c9f4f/raw?se=2026-10-02T13%3A28%3A00Z&sp=r&sv=2026-02-06&sr=b&scid=02e58cbc-87ce-5b14-ac93-1c1d27ee3f1c&skoid=cb94e22a-e3df-4e6a-9e17-1696f40fa435&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-10-02T02%3A50%3A25Z&ske=2026-10-03T02%3A50%3A25Z&sks=b&skv=2026-02-06&sig=ZwxP6nOi2vZkdP8RN2o6EQJACPMXEc7vWhdPLOFZhf8%3D"
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch v1.2.8 parent source
+      - name: Fetch locked v1.2.6 source
         run: |
-          curl -fL --retry 5 --retry-all-errors --connect-timeout 20 "$BASE_SOURCE_URL" -o /tmp/clinical-suite-v1.2.8-source.zip
-          echo "$BASE_SOURCE_SHA256  /tmp/clinical-suite-v1.2.8-source.zip" | sha256sum -c -
-          rm -rf /tmp/clinical-suite-v1.2.9
-          mkdir -p /tmp/clinical-suite-v1.2.9
-          unzip -q /tmp/clinical-suite-v1.2.8-source.zip -d /tmp/clinical-suite-v1.2.9
-          PROJECT_DIR=$(find /tmp/clinical-suite-v1.2.9 -mindepth 1 -maxdepth 1 -type d | head -n1)
+          curl -fL --retry 5 --retry-all-errors --connect-timeout 20 "$SOURCE_URL" -o /tmp/clinical-suite-v1.2.6-source.zip
+          echo "$SOURCE_SHA256  /tmp/clinical-suite-v1.2.6-source.zip" | sha256sum -c -
+          rm -rf /tmp/clinical-suite-v1.2.6
+          mkdir -p /tmp/clinical-suite-v1.2.6
+          unzip -q /tmp/clinical-suite-v1.2.6-source.zip -d /tmp/clinical-suite-v1.2.6
+          PROJECT_DIR=$(find /tmp/clinical-suite-v1.2.6 -mindepth 1 -maxdepth 1 -type d | head -n1)
           test -f "$PROJECT_DIR/app/build.gradle"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
-
-      - name: Apply v1.2.9 Dock portal patch
-        run: |
-          cd "$PROJECT_DIR"
-          python3 - <<'PY'
-          from pathlib import Path
-          import json
-
-          build=Path("app/build.gradle")
-          s=build.read_text(encoding="utf-8")
-          s=s.replace("versionCode 19","versionCode 20").replace("versionName '1.2.8'","versionName '1.2.9'")
-          build.write_text(s,encoding="utf-8")
-
-          manifest=Path("app/src/main/assets/offline/offline-manifest.json")
-          m=json.loads(manifest.read_text(encoding="utf-8"))
-          m["android_version"]="1.2.9"
-          manifest.write_text(json.dumps(m,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
-
-          java=Path("app/src/main/java/com/medipharm/clinicalsuite/MainActivity.java")
-          t=java.read_text(encoding="utf-8")
-
-          old=".mcs-native-android .mcs-mobile-bottom-nav{position:fixed!important;left:0!important;right:0!important;bottom:0!important;z-index:900!important;display:grid!important;"
-          new=".mcs-native-android .mcs-mobile-bottom-nav{position:fixed!important;left:0!important;right:0!important;bottom:0!important;width:100vw!important;max-width:none!important;margin:0!important;z-index:2147482000!important;display:grid!important;"
-          assert old in t
-          t=t.replace(old,new,1)
-
-          t=t.replace(
-              ".mcs-native-android .nah-clinical-tools.showing-detail .mcs-mobile-bottom-nav{display:none!important}",
-              ".mcs-native-android.mcs-native-detail-open .mcs-mobile-bottom-nav,.mcs-native-android.mcs-native-personalization-open .mcs-mobile-bottom-nav{display:none!important}",
-              1
-          )
-          t=t.replace(
-              ".mcs-native-android .mcs-theme-dark .mcs-mobile-bottom-nav{background:rgba(14,27,32,.98)!important;border-top-color:#293c43!important;box-shadow:0 -3px 14px rgba(0,0,0,.26)!important}.mcs-native-android .mcs-theme-dark .mcs-mobile-bottom-nav button{color:#87979c!important}.mcs-native-android .mcs-theme-dark .mcs-mobile-bottom-nav button.active{color:#68d9cf!important}",
-              ".mcs-native-android.mcs-native-theme-dark .mcs-mobile-bottom-nav{background:rgba(14,27,32,.98)!important;border-top-color:#293c43!important;box-shadow:0 -3px 14px rgba(0,0,0,.26)!important}.mcs-native-android.mcs-native-theme-dark .mcs-mobile-bottom-nav button{color:#87979c!important}.mcs-native-android.mcs-native-theme-dark .mcs-mobile-bottom-nav button.active{color:#68d9cf!important}",
-              1
-          )
-
-          needle='"function apply(){" +\n'
-          assert needle in t
-          insert='''                "function syncDockPortal(){var root=document.querySelector('[data-nah-clinical-root]');var dock=document.querySelector('[data-mcs-mobile-bottom-nav]');if(dock&&dock.parentElement!==document.body){document.body.appendChild(dock);dock.setAttribute('data-mcs-android-portal','1');}var de=document.documentElement;if(root){de.classList.toggle('mcs-native-detail-open',root.classList.contains('showing-detail'));de.classList.toggle('mcs-native-personalization-open',root.classList.contains('mcs-personalization-open'));de.classList.toggle('mcs-native-theme-dark',root.classList.contains('mcs-theme-dark')||document.body.classList.contains('mcs-theme-dark'));if(!root.dataset.mcsAndroidDockObserver){var mo=new MutationObserver(function(){syncDockPortal();});mo.observe(root,{attributes:true,attributeFilter:['class']});root.dataset.mcsAndroidDockObserver='1';}}return dock;}" +
-                "function apply(){syncDockPortal();" +
-          '''
-          t=t.replace(needle,insert,1)
-
-          old_tail='"apply();window.setTimeout(apply,250);window.setTimeout(apply,1200);return \'ok\';" +'
-          new_tail='"apply();window.setTimeout(apply,250);window.setTimeout(apply,1200);window.setTimeout(apply,3000);if(!window.__mcsAndroidDockPortalBound){window.addEventListener(\'resize\',syncDockPortal,{passive:true});window.addEventListener(\'orientationchange\',function(){window.setTimeout(syncDockPortal,120);},{passive:true});window.__mcsAndroidDockPortalBound=true;}return \'ok\';" +'
-          assert old_tail in t
-          t=t.replace(old_tail,new_tail,1)
-          java.write_text(t,encoding="utf-8")
-          PY
 
       - uses: actions/setup-java@v5
         with:
@@ -94,42 +44,45 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Verify and build v1.2.9
+      - name: Verify v1.2.6 adaptive icon contract
         run: |
           cd "$PROJECT_DIR"
           python3 - <<'PY'
-          import json, pathlib, hashlib
-          root=pathlib.Path("app/src/main/assets/offline")
-          m=json.loads((root/"offline-manifest.json").read_text(encoding="utf-8"))
-          assert m["android_version"]=="1.2.9"
+          import json, pathlib
+          root=pathlib.Path(".")
+          m=json.loads((root/"app/src/main/assets/offline/offline-manifest.json").read_text(encoding="utf-8"))
+          build=(root/"app/build.gradle").read_text(encoding="utf-8")
+          manifest=(root/"app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
+          adaptive=(root/"app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml").read_text(encoding="utf-8")
+          round_adaptive=(root/"app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml").read_text(encoding="utf-8")
+          assert m["android_version"]=="1.2.6"
           assert m["content_version"]=="16.7.10"
           assert m["tool_count"]==1505
           assert m["file_count"]==52
-
-          build=pathlib.Path("app/build.gradle").read_text(encoding="utf-8")
-          java=pathlib.Path("app/src/main/java/com/medipharm/clinicalsuite/MainActivity.java").read_text(encoding="utf-8")
-          assert "versionCode 20" in build and "versionName '1.2.9'" in build
-          assert "document.body.appendChild(dock)" in java
-          assert "data-mcs-android-portal" in java
-          assert "mcs-native-detail-open" in java
-          assert "window.addEventListener('resize',syncDockPortal" in java
-
-          total=0
-          for rec in m["files"]:
-              p=root/rec["path"]; b=p.read_bytes(); total+=len(b)
-              assert len(b)==rec["bytes"] and hashlib.sha256(b).hexdigest()==rec["sha256"], rec["path"]
-          assert total==m["payload_bytes"]
-          print("V129_DOCK_PORTAL_PASS")
+          assert "versionCode 17" in build and "versionName '1.2.6'" in build
+          assert 'android:icon="@mipmap/ic_launcher"' in manifest
+          assert 'android:roundIcon="@mipmap/ic_launcher_round"' in manifest
+          assert "<adaptive-icon" in adaptive and "@color/ic_launcher_background" in adaptive
+          assert "@drawable/ic_launcher_foreground" in adaptive
+          assert adaptive==round_adaptive
+          assert (root/"app/src/main/res/drawable-nodpi/ic_launcher_foreground_bitmap.png").is_file()
+          assert (root/"app/src/main/res/mipmap-xxxhdpi/ic_launcher.png").is_file()
+          assert (root/"app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png").is_file()
+          print("V126_ADAPTIVE_ICON_PASS")
           PY
 
+      - name: Build and align v1.2.6
+        run: |
+          cd "$PROJECT_DIR"
           gradle --no-daemon assembleRelease
           mkdir -p "$GITHUB_WORKSPACE/out"
-          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.9-aligned-unsigned.apk"
-          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.9-aligned-unsigned.apk"
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.6-aligned-unsigned.apk"
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.6-aligned-unsigned.apk"
+          sha256sum "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.6-aligned-unsigned.apk" > "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.6-aligned-unsigned.apk.sha256"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: medipharm-clinical-suite-v1.2.9-build
+          name: medipharm-clinical-suite-v1.2.6-adaptive-icon-build
           path: out/
           if-no-files-found: error
           retention-days: 7
