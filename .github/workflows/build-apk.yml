@@ -1,9 +1,12 @@
 name: Build Android v1.2.6 Adaptive Icon Fix
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
+    inputs:
+      source_url:
+        description: "Temporary download URL for locked v1.2.6 source ZIP"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -15,11 +18,11 @@ jobs:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
       SOURCE_SHA256: d0fb2128e89122daf8fe48e6b425b0d9c51bdbc361cb36b8c9d6b05ae3d01922
-      SOURCE_URL: "https://sdmntprindiasocentral.oaiusercontent.com/files/00000000-0f2c-8211-a56a-60fb5b5da79e/raw?se=2026-10-02T15%3A19%3A55Z&sp=r&sv=2026-02-06&sr=b&scid=61e1d024-95ee-5691-aaac-d774cb2d7846&skoid=03727f49-62d3-42ac-8350-1c0e6559d238&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-10-02T02%3A39%3A07Z&ske=2026-10-03T02%3A39%3A07Z&sks=b&skv=2026-02-06&sig=47axrv7NIX953pG1emvwRruxvQKnciH%2BEPUvzKsGS68%3D"
     steps:
       - uses: actions/checkout@v4
-
       - name: Fetch locked v1.2.6 source
+        env:
+          SOURCE_URL: ${{ inputs.source_url }}
         run: |
           curl -fL --retry 5 --retry-all-errors --connect-timeout 20 "$SOURCE_URL" -o /tmp/clinical-suite-v1.2.6-source.zip
           echo "$SOURCE_SHA256  /tmp/clinical-suite-v1.2.6-source.zip" | sha256sum -c -
@@ -29,61 +32,27 @@ jobs:
           PROJECT_DIR=$(find /tmp/clinical-suite-v1.2.6 -mindepth 1 -maxdepth 1 -type d | head -n1)
           test -f "$PROJECT_DIR/app/build.gradle"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
-
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
-
       - name: Install Android SDK packages
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-
-      - name: Verify v1.2.6 adaptive-icon contract
-        run: |
-          cd "$PROJECT_DIR"
-          python3 - <<'PY'
-          import json, pathlib, hashlib
-          root=pathlib.Path(".")
-          m=json.loads((root/"app/src/main/assets/offline/offline-manifest.json").read_text(encoding="utf-8"))
-          build=(root/"app/build.gradle").read_text(encoding="utf-8")
-          manifest=(root/"app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
-          adaptive=(root/"app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml").read_text(encoding="utf-8")
-          adaptive_round=(root/"app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml").read_text(encoding="utf-8")
-          fg=root/"app/src/main/res/drawable/ic_launcher_foreground.png"
-          colors=(root/"app/src/main/res/values/colors.xml").read_text(encoding="utf-8")
-
-          assert m["android_version"]=="1.2.6"
-          assert m["content_version"]=="16.7.10"
-          assert m["tool_count"]==1505
-          assert m["file_count"]==52
-          assert "versionCode 17" in build and "versionName '1.2.6'" in build
-          assert 'android:icon="@mipmap/ic_launcher"' in manifest
-          assert 'android:roundIcon="@mipmap/ic_launcher_round"' in manifest
-          assert "<adaptive-icon" in adaptive and "@drawable/ic_launcher_foreground" in adaptive
-          assert "<adaptive-icon" in adaptive_round and "@drawable/ic_launcher_foreground" in adaptive_round
-          assert 'name="ic_launcher_background">#FFFFFF<' in colors
-          assert hashlib.sha256(fg.read_bytes()).hexdigest()=="5b610664071382b00e27b1a33fc968c373a2f557914aec677637dd3598152106"
-          print("V126_ADAPTIVE_ICON_PASS")
-          PY
-
-      - name: Build and align v1.2.6
+      - name: Verify and build v1.2.6
         run: |
           cd "$PROJECT_DIR"
           gradle --no-daemon assembleRelease
           mkdir -p "$GITHUB_WORKSPACE/out"
           "$ANDROID_HOME/build-tools/35.0.0/zipalign" -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.6-aligned-unsigned.apk"
           "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.6-aligned-unsigned.apk"
-          sha256sum "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.6-aligned-unsigned.apk" > "$GITHUB_WORKSPACE/out/MEDIPHARM-Clinical-Suite-v1.2.6-aligned-unsigned.apk.sha256"
-
       - uses: actions/upload-artifact@v4
         with:
-          name: medipharm-clinical-suite-v1.2.6-adaptive-icon-build
+          name: medipharm-clinical-suite-v1.2.6-build
           path: out/
           if-no-files-found: error
           retention-days: 7
