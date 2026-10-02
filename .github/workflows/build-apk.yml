@@ -14,12 +14,12 @@ jobs:
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-      SOURCE_SHA256: 3c032890af903c35810645255259053ec6c4fbd19e64849a0fcbc27e3dbc4942
+      SOURCE_SHA256: 135e94e8344e3f1b2656eeb154590e8b783118a90b655d5d73be1a950ee22355
     steps:
       - uses: actions/checkout@v4
       - name: Fetch locked v1.2.8 source
         env:
-          SOURCE_URL: "https://sdmntprkoreacentral.oaiusercontent.com/files/00000000-2220-8206-93cc-00c76ebe654f/raw?se=2026-10-02T08%3A49%3A15Z&sp=r&sv=2026-02-06&sr=b&scid=bff11a76-9789-54b8-a749-3e4e138e1692&skoid=03727f49-62d3-42ac-8350-1c0e6559d238&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-10-02T08%3A30%3A35Z&ske=2026-10-03T08%3A30%3A35Z&sks=b&skv=2026-02-06&sig=pI6d1wONByyO3OYGTtbQ%2BmsnWq0UwyreodVXNBRwS2g%3D"
+          SOURCE_URL: "https://sdmntprjapaneast.oaiusercontent.com/files/00000000-e108-8209-9fb9-6f7620060831/raw?se=2026-10-02T08%3A52%3A55Z&sp=r&sv=2026-02-06&sr=b&scid=c96cfb2e-a62a-56f2-bc3c-7e02c21ce75f&skoid=03727f49-62d3-42ac-8350-1c0e6559d238&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-10-02T02%3A25%3A17Z&ske=2026-10-03T02%3A25%3A17Z&sks=b&skv=2026-02-06&sig=gwd5E1OnpszAg%2BRozpksACQDcXEqd7Zhi8Ns8cWgRng%3D"
         run: |
           curl -fL --retry 5 --retry-all-errors --connect-timeout 20 "$SOURCE_URL" -o /tmp/clinical-suite-v1.2.8-source.zip
           echo "$SOURCE_SHA256  /tmp/clinical-suite-v1.2.8-source.zip" | sha256sum -c -
@@ -56,6 +56,12 @@ jobs:
           assert "v.setPadding(topInsets.left, topInsets.top, topInsets.right, 0);" in java
           assert "--mcs-android-bottom-inset" in java
           assert "[data-mcs-mobile-more] b{font-size:0!important}" in java
+          import hashlib
+          total=0
+          for rec in m["files"]:
+              p=root/rec["path"]; b=p.read_bytes(); total+=len(b)
+              assert len(b)==rec["bytes"] and hashlib.sha256(b).hexdigest()==rec["sha256"], rec["path"]
+          assert total==m["payload_bytes"]
           print("V128_LOCK_PASS")
           PY
           gradle --no-daemon assembleRelease
